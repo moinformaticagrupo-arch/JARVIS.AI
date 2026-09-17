@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07111f" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>JARVIS</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div><p class="eyebrow"><i></i> SISTEMA EN LÍNEA · ASISTENTE PERSONAL</p><h1>JARVIS<span>//</span></h1></div>
+        <div class="header-actions"><span id="clock" class="clock"></span><button id="soundButton" class="sound-button" aria-label="Activar o silenciar voz" title="Voz activada">◖))</button><button id="voiceButton" class="icon-button" aria-label="Hablar con Jarvis" title="Hablar">⌁</button></div>
+      </header>
+
+      <section class="command-deck">
+        <div class="core" aria-hidden="true"><div class="ring ring-one"></div><div class="ring ring-two"></div><div class="orb"></div></div>
+        <div class="system-readout"><p>JARVIS PERSONAL OS</p><strong>LISTO PARA AYUDAR</strong><small>VOZ · ORGANIZACIÓN · INFORMACIÓN</small></div>
+        <div class="status-card"><span>ESTADO</span><b>OPERATIVO</b><em>▰ ▰ ▰ ▰ ▰</em></div>
+      </section>
+
+      <section id="chat" class="chat" aria-live="polite"><article class="message assistant">Buenas, señor. Sistemas listos. ¿Cuál es su orden?</article></section>
+
+      <section class="suggestions" aria-label="Acciones rápidas">
+        <button data-prompt="¿Quién te creó?"><span>01</span> IDENTIDAD</button>
+        <button data-prompt="Recuérdame tomar agua a las 16:00"><span>02</span> RECORDATORIO</button>
+        <button data-prompt="¿Qué puedes hacer?"><span>03</span> CAPACIDADES</button>
+      </section>
+
+      <section class="modules" aria-label="Módulos de Jarvis">
+        <button data-action="music"><b>♫</b><span>MÚSICA<small>Spotify / YouTube</small></span></button>
+        <button data-action="calendar"><b>◫</b><span>AGENDA<small>Próximamente</small></span></button>
+        <button data-action="apps"><b>◈</b><span>APLICACIONES<small>Conector nativo</small></span></button>
+      </section>
+
+      <form id="composer" class="composer">
+        <input id="prompt" autocomplete="off" placeholder="Escribe una orden o pregunta…" aria-label="Mensaje para Jarvis" />
+        <button type="submit">Enviar</button>
+      </form>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
