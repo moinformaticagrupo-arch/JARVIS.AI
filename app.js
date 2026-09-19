@@ -46,6 +46,7 @@ const gestureDialog = document.querySelector("#gestureDialog");
 const gestureVideo = document.querySelector("#gestureVideo");
 const gestureCanvas = document.querySelector("#gestureCanvas");
 const gestureStatus = document.querySelector("#gestureStatus");
+const faceStatus = document.querySelector("#faceStatus");
 
 const companionDialog = document.querySelector("#companionDialog");
 const companionStatus = document.querySelector("#companionStatus");
@@ -2127,6 +2128,77 @@ async function startGestures() {
         const context =
             gestureCanvas.getContext("2d");
 
+        let facePoints = null;
+        let faceLastSeen = 0;
+
+        const drawFaceHud = () => {
+
+            if (
+                !facePoints ||
+                Date.now() - faceLastSeen > 1200
+            ) {
+                if (faceStatus) {
+                    faceStatus.textContent = "ROSTRO · BUSCANDO";
+                }
+                return false;
+            }
+
+            const xs = facePoints.map(point => point.x * gestureCanvas.width);
+            const ys = facePoints.map(point => point.y * gestureCanvas.height);
+            const left = Math.min(...xs);
+            const right = Math.max(...xs);
+            const top = Math.min(...ys);
+            const bottom = Math.max(...ys);
+
+            context.save();
+            context.strokeStyle = "#ff6258";
+            context.lineWidth = 2;
+            context.setLineDash([7, 5]);
+            context.strokeRect(left, top, right - left, bottom - top);
+            context.setLineDash([]);
+
+            if (
+                typeof drawConnectors === "function" &&
+                window.FACEMESH_TESSELATION
+            ) {
+                drawConnectors(
+                    context,
+                    facePoints,
+                    FACEMESH_TESSELATION,
+                    { color: "#ff625844", lineWidth: 1 }
+                );
+            }
+
+            context.restore();
+
+            if (faceStatus) {
+                faceStatus.textContent = "ROSTRO · DETECTADO LOCALMENTE";
+            }
+
+            return true;
+        };
+
+        const faceMesh = window.FaceMesh
+            ? new FaceMesh({
+                locateFile: file =>
+                    `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+            })
+            : null;
+
+        faceMesh?.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: false,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
+        });
+
+        faceMesh?.onResults(results => {
+            facePoints = results.multiFaceLandmarks?.[0] || null;
+            if (facePoints) {
+                faceLastSeen = Date.now();
+            }
+        });
+
         const hands =
             new Hands({
                 locateFile: file =>
@@ -2156,13 +2228,16 @@ async function startGestures() {
                     gestureCanvas.height
                 );
 
+                const faceDetected = drawFaceHud();
+
                 const points =
                     results.multiHandLandmarks?.[0];
 
                 if (!points) {
 
-                    gestureStatus.textContent =
-                        "Mostrá una mano frente a la cámara, señor.";
+                    gestureStatus.textContent = faceDetected
+                        ? "Rostro detectado · mostrá una mano para usar gestos."
+                        : "Mostrá una mano frente a la cámara, señor.";
 
                     return;
                 }
@@ -2291,11 +2366,15 @@ async function startGestures() {
                 gestureVideo,
                 {
                     onFrame:
-                        async () =>
-                            hands.send({
-                                image:
-                                    gestureVideo
-                            }),
+                        async () => {
+                            const frame = {
+                                image: gestureVideo
+                            };
+                            await Promise.all([
+                                hands.send(frame),
+                                faceMesh?.send(frame)
+                            ].filter(Boolean));
+                        },
 
                     width: 1280,
                     height: 720
