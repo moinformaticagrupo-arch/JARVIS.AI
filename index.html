@@ -69,7 +69,7 @@
       </dialog>
       <dialog id="gestureDialog" class="gesture-dialog">
         <div class="gesture-head"><div><p>CONTROL GESTUAL</p><small>Apunte a un botón y junte pulgar e índice para activarlo.</small></div><button id="closeGestures" aria-label="Cerrar">×</button></div>
-        <div class="gesture-stage"><video id="gestureVideo" playsinline muted></video><canvas id="gestureCanvas"></canvas><div class="gesture-hud"><div class="gesture-core"><span>JARVIS</span><small>GESTURE LINK</small></div><button data-gesture-command="Abrir archivos">ARCHIVOS</button><button data-gesture-command="Mostrar imágenes">IMÁGENES</button><button data-gesture-command="Abrir música">MÚSICA</button></div><p id="gestureStatus" class="gesture-status">Inicializando cámara…</p></div>
+        <div class="gesture-stage"><video id="gestureVideo" playsinline muted></video><canvas id="gestureCanvas"></canvas><div class="gesture-hud"><div class="gesture-core"><span>JARVIS</span><small>GESTURE LINK</small></div><button data-gesture-command="Abrir archivos">ARCHIVOS</button><button data-gesture-command="Mostrar imágenes">IMÁGENES</button><button data-gesture-command="Abrir música">MÚSICA</button></div><p id="faceStatus" class="face-status">ROSTRO · BUSCANDO</p><p id="gestureStatus" class="gesture-status">Inicializando cámara…</p></div>
       </dialog>
       <dialog id="companionDialog" class="companion-dialog">
         <form method="dialog"><p>SESIÓN DE ACOMPAÑAMIENTO</p><small>JARVIS escucha solo mientras esta sesión esté activa. Decí “Jarvis” antes de pedir ayuda. No graba ni guarda el audio.</small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="startCompanion" type="button">Iniciar conversación</button><button id="stopCompanion" type="button" disabled>Detener</button></div><p id="companionStatus" class="companion-status">Micrófono desactivado.</p><div id="companionTranscript" class="companion-transcript" aria-live="polite">Todavía no se detectaron palabras.</div></form>
@@ -87,6 +87,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="app.js"></script>
   </body>
 </html>
