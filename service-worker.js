@@ -1,4 +1,44 @@
-const CACHE = 'jarvis-v1';
-const FILES = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest'];
-self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))));
-self.addEventListener('fetch', event => event.respondWith(caches.match(event.request).then(hit => hit || fetch(event.request))));
+// JARVIS PWA: prioriza la versión publicada y usa caché solo sin conexión.
+const CACHE = 'jarvis-v8';
+const CORE_FILES = [
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.webmanifest'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(cache => cache.addAll(CORE_FILES))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys
+        .filter(key => key.startsWith('jarvis-') && key !== CACHE)
+        .map(key => caches.delete(key))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
