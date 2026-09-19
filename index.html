@@ -34,7 +34,7 @@
 
       <section class="care-mode" aria-label="Accesibilidad y acompañamiento">
         <div><p>ASISTENCIA INCLUSIVA</p><small>Diseñado para todas las edades.</small></div>
-        <button id="seniorMode">Aa MODO CLARO</button><button id="companionMode">◉ ACOMPAÑAMIENTO</button>
+        <button id="seniorMode">Aa MODO CLARO</button><button id="kidsMode">★ MODO INFANTIL</button><button id="companionMode">◉ ACOMPAÑAMIENTO</button>
       </section>
 
       <section class="task-center" aria-label="Centro de tareas">
@@ -54,6 +54,7 @@
         <button data-action="music"><b>♫</b><span>MÚSICA<small>Spotify / YouTube</small></span></button>
         <button data-action="calendar"><b>◫</b><span>AGENDA<small>Próximamente</small></span></button>
         <button data-action="gestures"><b>⌁</b><span>GESTOS<small>Cámara web</small></span></button>
+        <button data-action="devices"><b>◈</b><span>DISPOSITIVOS<small>PC · Celular · TV</small></span></button>
       </section>
 
       <form id="composer" class="composer">
@@ -67,17 +68,20 @@
         <form method="dialog" id="memoryForm"><p>MEMORIA DE JARVIS</p><small>Solo se guarda en este dispositivo hasta activar la sincronización segura.</small><div id="memoryList" class="memory-list"></div><input id="memoryInput" placeholder="Ej.: Mi comida favorita es pizza" autocomplete="off" /><div><button id="clearMemory" type="button">Borrar memoria</button><button value="cancel">Cerrar</button><button value="save">Recordar</button></div></form>
       </dialog>
       <dialog id="gestureDialog" class="gesture-dialog">
-        <div class="gesture-head"><div><p>CONTROL GESTUAL</p><small>Junte pulgar e índice para seleccionar.</small></div><button id="closeGestures" aria-label="Cerrar">×</button></div>
+        <div class="gesture-head"><div><p>CONTROL GESTUAL</p><small>Apunte a un botón y junte pulgar e índice para activarlo.</small></div><button id="closeGestures" aria-label="Cerrar">×</button></div>
         <div class="gesture-stage"><video id="gestureVideo" playsinline muted></video><canvas id="gestureCanvas"></canvas><div class="gesture-hud"><div class="gesture-core"><span>JARVIS</span><small>GESTURE LINK</small></div><button data-gesture-command="Abrir archivos">ARCHIVOS</button><button data-gesture-command="Mostrar imágenes">IMÁGENES</button><button data-gesture-command="Abrir música">MÚSICA</button></div><p id="gestureStatus" class="gesture-status">Inicializando cámara…</p></div>
       </dialog>
       <dialog id="companionDialog" class="companion-dialog">
-        <form method="dialog"><p>SESIÓN DE ACOMPAÑAMIENTO</p><small>JARVIS escuchará solo mientras esta sesión esté activa. La transcripción se enviará a la IA para responderle; no graba ni guarda audio en este dispositivo.</small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="startCompanion" type="button">Iniciar conversación</button><button id="stopCompanion" type="button" disabled>Detener</button></div><p id="companionStatus" class="companion-status">Micrófono desactivado.</p></form>
+        <form method="dialog"><p>SESIÓN DE ACOMPAÑAMIENTO</p><small>JARVIS escucha solo mientras esta sesión esté activa. Decí “Jarvis” antes de pedir ayuda. No graba ni guarda el audio.</small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="startCompanion" type="button">Iniciar conversación</button><button id="stopCompanion" type="button" disabled>Detener</button></div><p id="companionStatus" class="companion-status">Micrófono desactivado.</p><div id="companionTranscript" class="companion-transcript" aria-live="polite">Todavía no se detectaron palabras.</div></form>
       </dialog>
       <dialog id="voiceDialog" class="companion-dialog">
         <form method="dialog"><p>ESTUDIO DE VOZ</p><small>Elegí una voz de español instalada. Las voces Natural, Neural u Online suelen sonar más humanas; JARVIS no imita la voz de una persona real.</small><label class="voice-control">VOZ<select id="voiceSelect" aria-label="Seleccionar voz"></select></label><label class="voice-control">ESTILO<select id="voiceStyle" aria-label="Estilo de habla"><option value="professional">Profesional sereno</option><option value="warm">Cercano y cálido</option><option value="brief">Directo y ágil</option></select></label><label class="voice-control">VELOCIDAD <output id="rateValue">Normal</output><input id="voiceRate" type="range" min="0.82" max="1.12" step="0.01" value="0.98" /></label><label class="voice-control">TONO <output id="pitchValue">Natural</output><input id="voicePitch" type="range" min="0.82" max="1.12" step="0.01" value="0.96" /></label><div class="companion-actions"><button value="cancel">Cerrar</button><button id="testVoice" type="button">Probar voz</button><button value="save">Guardar</button></div><p id="voiceHint" class="companion-status"></p></form>
       </dialog>
       <dialog id="actionDialog" class="companion-dialog">
         <form method="dialog"><p>CONFIRMAR ACCIÓN</p><small id="actionDescription"></small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="confirmAction" type="button">Confirmar y abrir</button></div></form>
+      </dialog>
+      <dialog id="devicesDialog" class="companion-dialog">
+        <form method="dialog"><p>DISPOSITIVOS JARVIS</p><small>Cada equipo se vincula por separado y solo puede abrir las apps que autorices.</small><div class="device-list"><div><b>PC WINDOWS</b><span>Disponible con el Agente Windows activo.</span></div><div><b>ANDROID / ANDROID TV</b><span>Requiere una app compañera de JARVIS instalada.</span></div><div><b>IPHONE / APPLE TV</b><span>Requiere app nativa o Atajos autorizados por el dueño.</span></div></div><div class="companion-actions"><button value="cancel">Cerrar</button></div></form>
       </dialog>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -86,4 +90,3 @@
     <script src="app.js"></script>
   </body>
 </html>
-
