@@ -49,6 +49,8 @@ const gestureStatus = document.querySelector("#gestureStatus");
 
 const companionDialog = document.querySelector("#companionDialog");
 const companionStatus = document.querySelector("#companionStatus");
+const companionTranscript = document.querySelector("#companionTranscript");
+const devicesDialog = document.querySelector("#devicesDialog");
 
 const actionDialog = document.querySelector("#actionDialog");
 const actionDescription = document.querySelector("#actionDescription");
@@ -65,6 +67,7 @@ const core = document.querySelector(".core");
 const orb = document.querySelector(".orb");
 
 let gestureStream;
+let gestureLastActionAt = 0;
 let companionRecognition;
 let pendingLaunch = null;
 let currentRecognition = null;
@@ -1154,17 +1157,23 @@ function answer(raw) {
 
 function findLocalAppCommand(raw) {
 
-    const text =
-        raw.toLowerCase();
+    const text = String(raw)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
 
     const requested =
         Object.entries(localApps)
             .find(
                 ([name]) =>
-                    text.includes(name)
+                    text.includes(
+                        name.normalize("NFD")
+                            .replace(/[\u0300-\u036f]/g, "")
+                            .toLowerCase()
+                    )
             );
 
-    return /abr[ií]|abrir|abre|ábreme|abreme|inicia|ejecuta|pon[eé]/.test(
+    return /abr[ií]|abrir|abre|ábreme|abreme|inicia|ejecuta|pon[eé]|mostra|muestra|lanz[aá]/.test(
         text
     )
         ? requested?.[1]
@@ -1752,6 +1761,12 @@ document
                     ) {
 
                         startGestures();
+
+                    } else if (
+                        action === "devices"
+                    ) {
+
+                        devicesDialog?.showModal();
                     }
                 }
             );
@@ -1888,6 +1903,10 @@ document
         "click",
         () => {
 
+            if (companionRecognition) {
+                return;
+            }
+
             const Recognition =
                 window.SpeechRecognition ||
                 window.webkitSpeechRecognition;
@@ -1921,6 +1940,11 @@ document
 
                     companionStatus.textContent =
                         "Escucha activa. Diga “Jarvis” para pedir ayuda.";
+
+                    if (companionTranscript) {
+                        companionTranscript.textContent =
+                            "Estoy escuchando. Podés detener la sesión cuando quieras.";
+                    }
                 };
 
             companionRecognition.onresult =
@@ -1936,11 +1960,19 @@ document
                     companionStatus.textContent =
                         `Escuchado: “${phrase}”`;
 
+                    if (companionTranscript) {
+                        companionTranscript.textContent =
+                            `Última frase: “${phrase}”`;
+                    }
+
                     if (
                         /jarvis|consejo|ayuda|qué opinás|que opinas/i.test(
                             phrase
                         )
                     ) {
+
+                        companionStatus.textContent =
+                            "Orden detectada. Preparando una respuesta…";
 
                         send(phrase);
                     }
@@ -2007,6 +2039,11 @@ function stopCompanion() {
 
         companionStatus.textContent =
             "Micrófono desactivado.";
+    }
+
+    if (companionTranscript) {
+        companionTranscript.textContent =
+            "La sesión terminó. No se guardó audio.";
     }
 
     document
@@ -2200,8 +2237,52 @@ async function startGestures() {
 
                 gestureStatus.textContent =
                     pinched
-                        ? "GESTO DE SELECCIÓN DETECTADO"
+                        ? "PINZA DETECTADA · apuntá a un botón para activarlo"
                         : "Mano detectada · junte pulgar e índice para seleccionar";
+
+                if (
+                    pinched &&
+                    Date.now() - gestureLastActionAt > 1200
+                ) {
+
+                    const stage =
+                        gestureCanvas.parentElement
+                            ?.getBoundingClientRect();
+
+                    const displayX =
+                        (1 - index.x) *
+                        (stage?.width || 0);
+
+                    const displayY =
+                        index.y *
+                        (stage?.height || 0);
+
+                    const target =
+                        [...document.querySelectorAll(
+                            "[data-gesture-command]"
+                        )].find(button => {
+
+                            const rect =
+                                button.getBoundingClientRect();
+
+                            return stage &&
+                                displayX >= rect.left - stage.left &&
+                                displayX <= rect.right - stage.left &&
+                                displayY >= rect.top - stage.top &&
+                                displayY <= rect.bottom - stage.top;
+                        });
+
+                    if (target) {
+
+                        gestureLastActionAt =
+                            Date.now();
+
+                        target.click();
+
+                        gestureStatus.textContent =
+                            `ORDEN ACTIVADA: ${target.dataset.gestureCommand}`;
+                    }
+                }
             }
         );
 
@@ -2231,6 +2312,8 @@ async function startGestures() {
 }
 
 function stopGestures() {
+
+    gestureLastActionAt = 0;
 
     gestureStream
         ?.getTracks()
