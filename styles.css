@@ -2024,3 +2024,28 @@ body.accessible .message {
 .voice-control output { justify-self:end; margin-top:-20px; color:var(--text-soft); font-size:10px; letter-spacing:0; }
 .voice-control input[type="range"] { height:18px; margin-top:5px; padding:0; accent-color:var(--red); cursor:pointer; }
 
+/* MODO INFANTIL ACCESIBLE: controles grandes, lenguaje visual tranquilo y foco claro. */
+body.kids-mode {
+    --red: #1769e0;
+    --red-bright: #3e8cff;
+    --border-red: rgba(62, 140, 255, 0.6);
+    --text-soft: #f2f7ff;
+    font-size: 112%;
+}
+
+body.kids-mode .shell { width: min(1050px, calc(100% - 24px)); }
+body.kids-mode .eyebrow i { background: var(--yellow); box-shadow: none; animation: none; }
+body.kids-mode .command-deck::before,
+body.kids-mode .ring,
+body.kids-mode .ring-two { animation-duration: 20s; }
+body.kids-mode .message { max-width: 92%; font-size: 16px; line-height: 1.65; }
+body.kids-mode .suggestions { grid-template-columns: 1fr; }
+body.kids-mode .suggestions button,
+body.kids-mode .modules button,
+body.kids-mode .routines button,
+body.kids-mode .care-mode button { min-height: 58px; font-size: 13px; border-width: 2px; }
+body.kids-mode .composer input,
+body.kids-mode .composer button { min-height: 60px; font-size: 16px; border-width: 2px; }
+body.kids-mode .panel,
+body.kids-mode .task-center,
+body.kids-mode .chat { border-width: 2px; }
