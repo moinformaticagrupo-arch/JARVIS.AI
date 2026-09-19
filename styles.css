@@ -2016,3 +2016,11 @@ body.accessible .message {
     line-height: 1.45;
     opacity: 0.68;
 }
+
+
+/* ESTUDIO DE VOZ */
+.voice-control { display:grid; gap:7px; margin-top:15px; color:var(--text-muted); font-size:9px; font-weight:800; letter-spacing:.13em; }
+.voice-control select { margin-top:0; }
+.voice-control output { justify-self:end; margin-top:-20px; color:var(--text-soft); font-size:10px; letter-spacing:0; }
+.voice-control input[type="range"] { height:18px; margin-top:5px; padding:0; accent-color:var(--red); cursor:pointer; }
+
