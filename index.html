@@ -74,7 +74,7 @@
         <form method="dialog"><p>SESIÓN DE ACOMPAÑAMIENTO</p><small>JARVIS escuchará solo mientras esta sesión esté activa. La transcripción se enviará a la IA para responderle; no graba ni guarda audio en este dispositivo.</small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="startCompanion" type="button">Iniciar conversación</button><button id="stopCompanion" type="button" disabled>Detener</button></div><p id="companionStatus" class="companion-status">Micrófono desactivado.</p></form>
       </dialog>
       <dialog id="voiceDialog" class="companion-dialog">
-        <form method="dialog"><p>VOZ DE JARVIS</p><small>Seleccione una voz de español instalada en su dispositivo. Las que dicen Natural, Neural u Online suelen sonar más humanas.</small><select id="voiceSelect" aria-label="Seleccionar voz"></select><div class="companion-actions"><button value="cancel">Cerrar</button><button id="testVoice" type="button">Probar voz</button><button value="save">Guardar</button></div><p id="voiceHint" class="companion-status"></p></form>
+        <form method="dialog"><p>ESTUDIO DE VOZ</p><small>Elegí una voz de español instalada. Las voces Natural, Neural u Online suelen sonar más humanas; JARVIS no imita la voz de una persona real.</small><label class="voice-control">VOZ<select id="voiceSelect" aria-label="Seleccionar voz"></select></label><label class="voice-control">ESTILO<select id="voiceStyle" aria-label="Estilo de habla"><option value="professional">Profesional sereno</option><option value="warm">Cercano y cálido</option><option value="brief">Directo y ágil</option></select></label><label class="voice-control">VELOCIDAD <output id="rateValue">Normal</output><input id="voiceRate" type="range" min="0.82" max="1.12" step="0.01" value="0.98" /></label><label class="voice-control">TONO <output id="pitchValue">Natural</output><input id="voicePitch" type="range" min="0.82" max="1.12" step="0.01" value="0.96" /></label><div class="companion-actions"><button value="cancel">Cerrar</button><button id="testVoice" type="button">Probar voz</button><button value="save">Guardar</button></div><p id="voiceHint" class="companion-status"></p></form>
       </dialog>
       <dialog id="actionDialog" class="companion-dialog">
         <form method="dialog"><p>CONFIRMAR ACCIÓN</p><small id="actionDescription"></small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="confirmAction" type="button">Confirmar y abrir</button></div></form>
@@ -86,3 +86,4 @@
     <script src="app.js"></script>
   </body>
 </html>
+
