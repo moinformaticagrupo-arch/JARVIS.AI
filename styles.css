@@ -2026,6 +2026,7 @@ body.accessible .message {
 
 .companion-transcript { margin-top:12px; padding:11px; border:1px solid var(--border); border-radius:9px; background:rgba(0,0,0,.22); color:var(--text-soft); font-size:12px; line-height:1.45; }
 .device-list { display:grid; gap:9px; margin-top:16px; }.device-list div { padding:11px; border:1px solid var(--border); border-radius:9px; background:rgba(255,255,255,.02); }.device-list b { display:block; color:var(--red-bright); font-size:10px; letter-spacing:.1em; }.device-list span { display:block; margin-top:5px; color:var(--text-muted); font-size:11px; line-height:1.4; }
+.face-status { position:absolute; top:20px; right:20px; z-index:4; margin:0; padding:8px 10px; border:1px solid rgba(233,75,66,.45); border-radius:8px; background:rgba(0,0,0,.65); color:var(--red-bright); font-size:9px; font-weight:800; letter-spacing:.11em; }
 
 /* MODO INFANTIL ACCESIBLE: controles grandes, lenguaje visual tranquilo y foco claro. */
 body.kids-mode {
