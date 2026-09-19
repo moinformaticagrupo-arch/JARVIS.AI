@@ -94,7 +94,16 @@ const localApps = {
     "whatsapp": "whatsapp",
     "youtube": "youtube",
     "netflix": "netflix",
-    "discord": "discord"
+    "discord": "discord",
+    "telegram": "telegram",
+    "gmail": "gmail",
+    "google maps": "maps",
+    "mapas": "maps",
+    "configuración": "configuracion",
+    "configuracion": "configuracion",
+    "fotos": "fotos",
+    "visual studio code": "vscode",
+    "vscode": "vscode"
 };
 
 const appLabels = {
@@ -107,7 +116,13 @@ const appLabels = {
     whatsapp: "WhatsApp Web",
     youtube: "YouTube",
     netflix: "Netflix",
-    discord: "Discord"
+    discord: "Discord",
+    telegram: "Telegram Web",
+    gmail: "Gmail",
+    maps: "Google Maps",
+    configuracion: "Configuración de Windows",
+    fotos: "Fotos de Windows",
+    vscode: "Visual Studio Code"
 };
 
 // ============================================================
@@ -959,7 +974,8 @@ function speak(text) {
         const utterance = new SpeechSynthesisUtterance(phrases[position++].trim());
         utterance.voice = selected;
         utterance.lang = selected?.lang || "es-AR";
-        utterance.rate = Math.min(1.2, Math.max(0.7, settings.rate + tuning[0]));
+        const kidRate = document.body.classList.contains("kids-mode") ? Math.min(settings.rate, 0.9) : settings.rate;
+        utterance.rate = Math.min(1.2, Math.max(0.7, kidRate + tuning[0]));
         utterance.pitch = Math.min(1.2, Math.max(0.7, settings.pitch + tuning[1]));
         utterance.onstart = () => setJarvisState(JARVIS_STATES.SPEAKING);
         utterance.onend = next;
@@ -1250,10 +1266,15 @@ async function requestAssistant(message) {
         const context =
             memories();
 
+        const childInstructions =
+            document.body.classList.contains("kids-mode")
+                ? "MODO INFANTIL ACCESIBLE: responde con frases cortas, amables y claras. Usa palabras sencillas, una idea por vez, no uses tono infantilizador, y nunca des consejos médicos ni sustituyas a un adulto responsable. Si la situación puede ser peligrosa, pide hablar con un adulto de confianza.\n\n"
+                : "";
+
         const enrichedMessage =
             context.length
-                ? `Memoria local autorizada: ${context.join(" | ")}\n\nOrden del señor: ${message}`
-                : message;
+                ? `${childInstructions}Memoria local autorizada: ${context.join(" | ")}\n\nMensaje: ${message}`
+                : `${childInstructions}${message}`;
 
         const response =
             await fetch(
@@ -1808,6 +1829,47 @@ document
             )
     );
 
+function setKidsMode(enabled) {
+
+    document.body.classList.toggle(
+        "kids-mode",
+        enabled
+    );
+
+    localStorage.setItem(
+        "jarvis-kids-mode",
+        enabled ? "on" : "off"
+    );
+
+    const button =
+        document.querySelector("#kidsMode");
+
+    if (button) {
+        button.textContent = enabled
+            ? "★ MODO ADULTO"
+            : "★ MODO INFANTIL";
+    }
+
+    if (promptInput) {
+        promptInput.placeholder = enabled
+            ? "Decime qué necesitás o tocá el micrófono…"
+            : "Escribe una orden o pregunta…";
+    }
+}
+
+setKidsMode(
+    localStorage.getItem("jarvis-kids-mode") === "on"
+);
+
+document
+    .querySelector("#kidsMode")
+    ?.addEventListener(
+        "click",
+        () => setKidsMode(
+            !document.body.classList.contains("kids-mode")
+        )
+    );
+
 // ============================================================
 // 26. MODO ACOMPAÑAMIENTO
 // ============================================================
@@ -2302,4 +2364,3 @@ console.log(
     "[JARVIS] Búsqueda web:",
     "ACTIVA mediante el backend"
 );
-
