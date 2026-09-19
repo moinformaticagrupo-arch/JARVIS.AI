@@ -18,6 +18,11 @@ const voiceSettings = document.querySelector("#voiceSettings");
 const voiceDialog = document.querySelector("#voiceDialog");
 const voiceSelect = document.querySelector("#voiceSelect");
 const voiceHint = document.querySelector("#voiceHint");
+const voiceStyle = document.querySelector("#voiceStyle");
+const voiceRate = document.querySelector("#voiceRate");
+const voicePitch = document.querySelector("#voicePitch");
+const rateValue = document.querySelector("#rateValue");
+const pitchValue = document.querySelector("#pitchValue");
 
 const clock = document.querySelector("#clock");
 
@@ -907,242 +912,106 @@ if (
         refreshVoices;
 }
 
+function voiceSettingsData() {
+    return {
+        style: localStorage.getItem("jarvis-voice-style") || "professional",
+        rate: Number(localStorage.getItem("jarvis-voice-rate") || 0.98),
+        pitch: Number(localStorage.getItem("jarvis-voice-pitch") || 0.96)
+    };
+}
+
+function updateVoiceLabels() {
+    if (!voiceRate || !voicePitch) return;
+    const rate = Number(voiceRate.value);
+    const pitch = Number(voicePitch.value);
+    if (rateValue) rateValue.textContent = rate < 0.93 ? "Pausada" : rate > 1.05 ? "Ágil" : "Normal";
+    if (pitchValue) pitchValue.textContent = pitch < 0.91 ? "Grave" : pitch > 1.04 ? "Alto" : "Natural";
+}
+
 function speak(text) {
-
-    if (
-        !voiceEnabled ||
-        !("speechSynthesis" in window)
-    ) {
-
-        if (
-            jarvisState ===
-            JARVIS_STATES.SPEAKING
-        ) {
-
-            setJarvisState(
-                JARVIS_STATES.ONLINE
-            );
-        }
-
+    if (!voiceEnabled || !("speechSynthesis" in window)) {
+        if (jarvisState === JARVIS_STATES.SPEAKING) setJarvisState(JARVIS_STATES.ONLINE);
         return;
     }
-
     window.speechSynthesis.cancel();
-
     refreshVoices();
 
-    const utterance =
-        new SpeechSynthesisUtterance(text);
+    const voices = availableVoices.filter(voice => /^es/i.test(voice.lang));
+    const natural = /natural|neural|online|enhanced/i;
+    const male = /raul|pablo|jorge|diego|miguel|carlos|david|javier|tomas|tomás|alvaro|álvaro|male|hombre/i;
+    const saved = localStorage.getItem("jarvis-voice-name");
+    const selected = voices.find(voice => voice.name === saved) ||
+        voices.find(voice => natural.test(voice.name) && male.test(voice.name)) ||
+        voices.find(voice => natural.test(voice.name) && /^es-AR/i.test(voice.lang)) ||
+        voices.find(voice => male.test(voice.name)) ||
+        voices.find(voice => /^es-AR/i.test(voice.lang)) || voices[0] || null;
 
-    const spanishVoices =
-        availableVoices.filter(
-            voice =>
-                /^es/i.test(
-                    voice.lang
-                )
-        );
+    const settings = voiceSettingsData();
+    const tuning = { professional: [0, -0.01], warm: [-0.02, 0.02], brief: [0.06, 0] }[settings.style] || [0, 0];
+    const phrases = String(text).replace(/https?:\/\/\S+/g, " enlace disponible en pantalla ").replace(/[•*_#]/g, "").match(/[^.!?;:]+[.!?;:]*/g) || [text];
+    let position = 0;
 
-    const naturalNames =
-        /natural|neural|online|enhanced/i;
-
-    const maleNames =
-        /raul|pablo|jorge|diego|miguel|carlos|david|javier|tomas|tomás|alvaro|álvaro|male|hombre/i;
-
-    const chosenName =
-        localStorage.getItem(
-            "jarvis-voice-name"
-        );
-
-    utterance.voice =
-        spanishVoices.find(
-            voice =>
-                voice.name ===
-                chosenName
-        ) ||
-
-        spanishVoices.find(
-            voice =>
-                naturalNames.test(
-                    voice.name
-                ) &&
-                maleNames.test(
-                    voice.name
-                )
-        ) ||
-
-        spanishVoices.find(
-            voice =>
-                naturalNames.test(
-                    voice.name
-                ) &&
-                /^es-AR/i.test(
-                    voice.lang
-                )
-        ) ||
-
-        spanishVoices.find(
-            voice =>
-                maleNames.test(
-                    voice.name
-                )
-        ) ||
-
-        spanishVoices.find(
-            voice =>
-                /^es-AR/i.test(
-                    voice.lang
-                )
-        ) ||
-
-        spanishVoices[0] ||
-
-        null;
-
-    utterance.lang =
-        utterance.voice?.lang ||
-        "es-AR";
-
-    utterance.rate = 1.01;
-    utterance.pitch = 0.96;
-    utterance.volume = 1;
-
-    utterance.onstart = () => {
-
-        setJarvisState(
-            JARVIS_STATES.SPEAKING
-        );
+    const next = () => {
+        if (position >= phrases.length) {
+            setJarvisState(JARVIS_STATES.ONLINE);
+            return;
+        }
+        const utterance = new SpeechSynthesisUtterance(phrases[position++].trim());
+        utterance.voice = selected;
+        utterance.lang = selected?.lang || "es-AR";
+        utterance.rate = Math.min(1.2, Math.max(0.7, settings.rate + tuning[0]));
+        utterance.pitch = Math.min(1.2, Math.max(0.7, settings.pitch + tuning[1]));
+        utterance.onstart = () => setJarvisState(JARVIS_STATES.SPEAKING);
+        utterance.onend = next;
+        utterance.onerror = () => setJarvisState(JARVIS_STATES.ONLINE);
+        window.speechSynthesis.speak(utterance);
     };
-
-    utterance.onend = () => {
-
-        setJarvisState(
-            JARVIS_STATES.ONLINE
-        );
-    };
-
-    utterance.onerror = event => {
-
-        console.warn(
-            "[JARVIS] Error de voz:",
-            event.error
-        );
-
-        setJarvisState(
-            JARVIS_STATES.ONLINE
-        );
-    };
-
-    setJarvisState(
-        JARVIS_STATES.SPEAKING
-    );
-
-    window.speechSynthesis.speak(
-        utterance
-    );
+    next();
 }
 
 // ============================================================
-// 13. SELECTOR DE VOZ
+// 13. ESTUDIO DE VOZ
 // ============================================================
 
+function saveVoiceSettings() {
+    if (voiceSelect?.value) localStorage.setItem("jarvis-voice-name", voiceSelect.value);
+    if (voiceStyle) localStorage.setItem("jarvis-voice-style", voiceStyle.value);
+    if (voiceRate) localStorage.setItem("jarvis-voice-rate", voiceRate.value);
+    if (voicePitch) localStorage.setItem("jarvis-voice-pitch", voicePitch.value);
+}
+
 function showVoicePicker() {
-
     refreshVoices();
-
-    const spanish =
-        availableVoices.filter(
-            voice =>
-                /^es/i.test(
-                    voice.lang
-                )
-        );
-
-    if (!voiceSelect) {
-        return;
-    }
-
+    const spanish = availableVoices.filter(voice => /^es/i.test(voice.lang));
+    if (!voiceSelect) return;
     voiceSelect.replaceChildren();
-
-    spanish.forEach(
-        voice => {
-
-            const option =
-                document.createElement("option");
-
-            option.value =
-                voice.name;
-
-            option.textContent =
-                `${voice.name} — ${voice.lang}`;
-
-            voiceSelect.append(
-                option
-            );
-        }
-    );
-
-    const saved =
-        localStorage.getItem(
-            "jarvis-voice-name"
-        );
-
-    if (saved) {
-        voiceSelect.value = saved;
-    }
-
-    if (voiceHint) {
-
-        voiceHint.textContent =
-            spanish.length
-                ? `${spanish.length} voces en español disponibles.`
-                : "No se detectaron voces en español. Instale una voz de español en su dispositivo.";
-    }
-
+    spanish.forEach(voice => {
+        const option = document.createElement("option");
+        option.value = voice.name;
+        option.textContent = `${voice.name} — ${voice.lang}`;
+        voiceSelect.append(option);
+    });
+    const saved = localStorage.getItem("jarvis-voice-name");
+    if (saved) voiceSelect.value = saved;
+    const settings = voiceSettingsData();
+    if (voiceStyle) voiceStyle.value = settings.style;
+    if (voiceRate) voiceRate.value = settings.rate;
+    if (voicePitch) voicePitch.value = settings.pitch;
+    updateVoiceLabels();
+    if (voiceHint) voiceHint.textContent = spanish.length ? `${spanish.length} voces en español disponibles. Elegí una y probala antes de guardar.` : "No se detectaron voces en español. Instale una voz de español en Windows.";
     voiceDialog?.showModal();
 }
 
-voiceSettings?.addEventListener(
-    "click",
-    showVoicePicker
-);
-
-document
-    .querySelector("#testVoice")
-    ?.addEventListener(
-        "click",
-        () => {
-
-            if (!voiceSelect?.value) {
-                return;
-            }
-
-            localStorage.setItem(
-                "jarvis-voice-name",
-                voiceSelect.value
-            );
-
-            speak(
-                "Buenas, señor. Esta es la voz seleccionada para JARVIS."
-            );
-        }
-    );
-
-voiceDialog?.addEventListener(
-    "close",
-    () => {
-
-        if (
-            voiceDialog.returnValue === "save" &&
-            voiceSelect?.value
-        ) {
-
-            localStorage.setItem(
-                "jarvis-voice-name",
-                voiceSelect.value
-            );
-        }
-    }
-);
+voiceSettings?.addEventListener("click", showVoicePicker);
+voiceRate?.addEventListener("input", updateVoiceLabels);
+voicePitch?.addEventListener("input", updateVoiceLabels);
+document.querySelector("#testVoice")?.addEventListener("click", () => {
+    saveVoiceSettings();
+    speak("Buenas, señor. Sistemas listos. Estoy a su disposición.");
+});
+voiceDialog?.addEventListener("close", () => {
+    if (voiceDialog.returnValue === "save") saveVoiceSettings();
+});
 
 // ============================================================
 // 14. BOTÓN DE SONIDO
@@ -2433,3 +2302,4 @@ console.log(
     "[JARVIS] Búsqueda web:",
     "ACTIVA mediante el backend"
 );
+
