@@ -12,13 +12,34 @@
     <main class="shell">
       <header>
         <div><p class="eyebrow"><i></i> SISTEMA EN LÍNEA · ASISTENTE PERSONAL</p><h1>JARVIS<span>//</span></h1></div>
-        <div class="header-actions"><span id="clock" class="clock"></span><button id="soundButton" class="sound-button" aria-label="Activar o silenciar voz" title="Voz activada">◖))</button><button id="voiceButton" class="icon-button" aria-label="Hablar con Jarvis" title="Hablar">⌁</button></div>
+        <div class="header-actions"><span id="clock" class="clock"></span><button id="voiceSettings" class="sound-button" aria-label="Elegir voz" title="Elegir voz">⚙</button><button id="soundButton" class="sound-button" aria-label="Activar o silenciar voz" title="Voz activada">◖))</button><button id="voiceButton" class="icon-button" aria-label="Hablar con Jarvis" title="Hablar">⌁</button></div>
       </header>
 
       <section class="command-deck">
         <div class="core" aria-hidden="true"><div class="ring ring-one"></div><div class="ring ring-two"></div><div class="orb"></div></div>
         <div class="system-readout"><p>JARVIS PERSONAL OS</p><strong>LISTO PARA AYUDAR</strong><small>VOZ · ORGANIZACIÓN · INFORMACIÓN</small></div>
         <div class="status-card"><span>ESTADO</span><b>OPERATIVO</b><em>▰ ▰ ▰ ▰ ▰</em></div>
+      </section>
+
+      <section class="dashboard" aria-label="Panel de control">
+        <article class="panel"><p>PRÓXIMA ACCIÓN</p><strong id="nextTask">Sin recordatorios</strong><button id="addTask" class="text-button">+ AGREGAR</button></article>
+        <article class="panel"><p>AGENTE WINDOWS</p><strong id="agentState"><i class="online-dot"></i> COMPROBANDO…</strong><small id="agentDetail">Control local de aplicaciones</small></article>
+        <article class="panel"><p>MEMORIA</p><strong id="memoryCount">0 DATOS</strong><button id="openMemory" class="text-button">VER</button></article>
+      </section>
+
+      <section class="routines" aria-label="Rutinas inteligentes">
+        <p>RUTINAS RÁPIDAS</p>
+        <div><button data-routine="modo estudio">◫ ESTUDIO</button><button data-routine="modo cine">▷ CINE</button><button data-routine="modo noche">☾ NOCHE</button><button data-routine="resumen diario">◌ RESUMEN</button></div>
+      </section>
+
+      <section class="care-mode" aria-label="Accesibilidad y acompañamiento">
+        <div><p>ASISTENCIA INCLUSIVA</p><small>Diseñado para todas las edades.</small></div>
+        <button id="seniorMode">Aa MODO CLARO</button><button id="companionMode">◉ ACOMPAÑAMIENTO</button>
+      </section>
+
+      <section class="task-center" aria-label="Centro de tareas">
+        <div class="section-heading"><p>ÓRDENES Y PENDIENTES</p><span id="taskProgress">0 / 0</span></div>
+        <div id="taskList" class="task-list"><p class="empty">Sin tareas activas, señor.</p></div>
       </section>
 
       <section id="chat" class="chat" aria-live="polite"><article class="message assistant">Buenas, señor. Sistemas listos. ¿Cuál es su orden?</article></section>
@@ -32,14 +53,36 @@
       <section class="modules" aria-label="Módulos de Jarvis">
         <button data-action="music"><b>♫</b><span>MÚSICA<small>Spotify / YouTube</small></span></button>
         <button data-action="calendar"><b>◫</b><span>AGENDA<small>Próximamente</small></span></button>
-        <button data-action="apps"><b>◈</b><span>APLICACIONES<small>Conector nativo</small></span></button>
+        <button data-action="gestures"><b>⌁</b><span>GESTOS<small>Cámara web</small></span></button>
       </section>
 
       <form id="composer" class="composer">
         <input id="prompt" autocomplete="off" placeholder="Escribe una orden o pregunta…" aria-label="Mensaje para Jarvis" />
         <button type="submit">Enviar</button>
       </form>
+      <dialog id="taskDialog">
+        <form method="dialog" id="taskForm"><p>NUEVA TAREA</p><input id="taskInput" placeholder="Ej.: llamar a mamá a las 18:00" autocomplete="off" /><div><button value="cancel">Cancelar</button><button value="save">Guardar</button></div></form>
+      </dialog>
+      <dialog id="memoryDialog">
+        <form method="dialog" id="memoryForm"><p>MEMORIA DE JARVIS</p><small>Solo se guarda en este dispositivo hasta activar la sincronización segura.</small><div id="memoryList" class="memory-list"></div><input id="memoryInput" placeholder="Ej.: Mi comida favorita es pizza" autocomplete="off" /><div><button id="clearMemory" type="button">Borrar memoria</button><button value="cancel">Cerrar</button><button value="save">Recordar</button></div></form>
+      </dialog>
+      <dialog id="gestureDialog" class="gesture-dialog">
+        <div class="gesture-head"><div><p>CONTROL GESTUAL</p><small>Junte pulgar e índice para seleccionar.</small></div><button id="closeGestures" aria-label="Cerrar">×</button></div>
+        <div class="gesture-stage"><video id="gestureVideo" playsinline muted></video><canvas id="gestureCanvas"></canvas><div class="gesture-hud"><div class="gesture-core"><span>JARVIS</span><small>GESTURE LINK</small></div><button data-gesture-command="Abrir archivos">ARCHIVOS</button><button data-gesture-command="Mostrar imágenes">IMÁGENES</button><button data-gesture-command="Abrir música">MÚSICA</button></div><p id="gestureStatus" class="gesture-status">Inicializando cámara…</p></div>
+      </dialog>
+      <dialog id="companionDialog" class="companion-dialog">
+        <form method="dialog"><p>SESIÓN DE ACOMPAÑAMIENTO</p><small>JARVIS escuchará solo mientras esta sesión esté activa. La transcripción se enviará a la IA para responderle; no graba ni guarda audio en este dispositivo.</small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="startCompanion" type="button">Iniciar conversación</button><button id="stopCompanion" type="button" disabled>Detener</button></div><p id="companionStatus" class="companion-status">Micrófono desactivado.</p></form>
+      </dialog>
+      <dialog id="voiceDialog" class="companion-dialog">
+        <form method="dialog"><p>VOZ DE JARVIS</p><small>Seleccione una voz de español instalada en su dispositivo. Las que dicen Natural, Neural u Online suelen sonar más humanas.</small><select id="voiceSelect" aria-label="Seleccionar voz"></select><div class="companion-actions"><button value="cancel">Cerrar</button><button id="testVoice" type="button">Probar voz</button><button value="save">Guardar</button></div><p id="voiceHint" class="companion-status"></p></form>
+      </dialog>
+      <dialog id="actionDialog" class="companion-dialog">
+        <form method="dialog"><p>CONFIRMAR ACCIÓN</p><small id="actionDescription"></small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="confirmAction" type="button">Confirmar y abrir</button></div></form>
+      </dialog>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="app.js"></script>
   </body>
 </html>
