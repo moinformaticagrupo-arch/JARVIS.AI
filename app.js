@@ -4568,3 +4568,20 @@ console.log(
     "[JARVIS] Modo acompañamiento:",
     "CONVERSACIÓN CONTINUA + CONTEXTO GENERAL"
 );
+// Ejemplo de integración en tu manejador de comandos
+function ejecutarComando(texto) {
+    const comando = texto.toLowerCase();
+
+    if (comando.startsWith("abrir ")) {
+        const app = comando.replace("abrir ", "").trim();
+        
+        // Intentamos abrir como app móvil
+        const ejecutado = abrirAppCelular(app);
+
+        if (ejecutado) {
+            agregarMensajeJarvis(`Abriendo ${app} en el dispositivo...`);
+        } else {
+            agregarMensajeJarvis(`No encontré una app compatible con el nombre "${app}".`);
+        }
+    }
+}
