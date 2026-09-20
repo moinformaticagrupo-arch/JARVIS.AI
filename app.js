@@ -1,4 +1,3 @@
-```javascript
 // ============================================================
 // JARVIS — APP.JS
 // Control principal + estados reales del núcleo
@@ -68,6 +67,10 @@ const orb = document.querySelector(".orb");
 let gestureStream;
 let gestureLastActionAt = 0;
 
+// ============================================================
+// ESTADO DEL MODO ACOMPAÑAMIENTO
+// ============================================================
+
 let companionRecognition = null;
 let companionActive = false;
 let companionProcessing = false;
@@ -75,6 +78,17 @@ let companionRestartTimer = null;
 let companionConversation = [];
 let companionLastPhrase = "";
 let companionLastPhraseAt = 0;
+
+// Identifica cada sesión.
+// Evita que una operación antigua vuelva a activar el micrófono.
+let companionSessionId = 0;
+
+// Promesa de la voz actualmente en reproducción.
+let activeSpeechPromise = Promise.resolve();
+
+// Generación de voz.
+// Sirve para invalidar una reproducción anterior.
+let speechGeneration = 0;
 
 let pendingLaunch = null;
 let currentRecognition = null;
@@ -339,6 +353,7 @@ function renderTasks() {
             document.createElement("p");
 
         empty.className = "empty";
+
         empty.textContent =
             "Sin tareas activas, señor.";
 
@@ -763,7 +778,9 @@ function addMessage(
             title.textContent =
                 "🌐 Fuentes de Internet";
 
-            sourcesBox.appendChild(title);
+            sourcesBox.appendChild(
+                title
+            );
 
             if (
                 typeof options.query === "string" &&
@@ -779,7 +796,9 @@ function addMessage(
                 query.textContent =
                     `Búsqueda: ${options.query}`;
 
-                sourcesBox.appendChild(query);
+                sourcesBox.appendChild(
+                    query
+                );
             }
 
             validSources.forEach(
@@ -891,7 +910,8 @@ function addMessage(
         text
     ) {
 
-        speak(text);
+        activeSpeechPromise =
+            speak(text);
     }
 }
 
@@ -978,6 +998,22 @@ function updateVoiceLabels() {
     }
 }
 
+// ------------------------------------------------------------
+// ESPERAR
+// ------------------------------------------------------------
+
+function wait(ms) {
+
+    return new Promise(
+        resolve =>
+            setTimeout(resolve, ms)
+    );
+}
+
+// ------------------------------------------------------------
+// HABLAR
+// ------------------------------------------------------------
+
 function speak(text) {
 
     if (
@@ -995,8 +1031,11 @@ function speak(text) {
             );
         }
 
-        return;
+        return Promise.resolve();
     }
+
+    const generation =
+        ++speechGeneration;
 
     window.speechSynthesis.cancel();
 
@@ -1077,116 +1116,164 @@ function speak(text) {
             ) ||
         [text];
 
-    let position = 0;
+    return new Promise(resolve => {
 
-    const next = () => {
+        let position = 0;
+        let finished = false;
 
-        if (
-            position >= phrases.length
-        ) {
+        const finish = () => {
 
-            setJarvisState(
-                JARVIS_STATES.ONLINE
-            );
-
-            // Si estamos en modo acompañamiento,
-            // volvemos a escuchar después de hablar.
-            if (
-                companionActive &&
-                !companionProcessing
-            ) {
-
-                scheduleCompanionRecognition();
+            if (finished) {
+                return;
             }
 
-            return;
-        }
+            finished = true;
 
-        const utterance =
-            new SpeechSynthesisUtterance(
-                phrases[position++].trim()
-            );
-
-        utterance.voice =
-            selected;
-
-        utterance.lang =
-            selected?.lang ||
-            "es-AR";
-
-        const kidRate =
-            document.body.classList.contains(
-                "kids-mode"
-            )
-                ? Math.min(
-                    settings.rate,
-                    0.9
-                )
-                : settings.rate;
-
-        utterance.rate =
-            Math.min(
-                1.2,
-                Math.max(
-                    0.7,
-                    kidRate + tuning[0]
-                )
-            );
-
-        utterance.pitch =
-            Math.min(
-                1.2,
-                Math.max(
-                    0.7,
-                    settings.pitch + tuning[1]
-                )
-            );
-
-        utterance.onstart = () => {
-
-            setJarvisState(
-                JARVIS_STATES.SPEAKING
-            );
-
-            // IMPORTANTE:
-            // pausamos el reconocimiento del modo
-            // acompañamiento mientras JARVIS habla.
             if (
-                companionActive &&
-                companionRecognition
+                generation === speechGeneration
             ) {
-
-                try {
-                    companionRecognition.stop();
-                } catch {}
-            }
-        };
-
-        utterance.onend =
-            next;
-
-        utterance.onerror =
-            () => {
 
                 setJarvisState(
                     JARVIS_STATES.ONLINE
                 );
+            }
+
+            resolve();
+        };
+
+        const next = () => {
+
+            if (
+                generation !== speechGeneration
+            ) {
+
+                finish();
+                return;
+            }
+
+            if (
+                position >= phrases.length
+            ) {
+
+                finish();
+                return;
+            }
+
+            const phrase =
+                phrases[position++]
+                    .trim();
+
+            if (!phrase) {
+
+                next();
+                return;
+            }
+
+            const utterance =
+                new SpeechSynthesisUtterance(
+                    phrase
+                );
+
+            utterance.voice =
+                selected;
+
+            utterance.lang =
+                selected?.lang ||
+                "es-AR";
+
+            const kidRate =
+                document.body.classList.contains(
+                    "kids-mode"
+                )
+                    ? Math.min(
+                        settings.rate,
+                        0.9
+                    )
+                    : settings.rate;
+
+            utterance.rate =
+                Math.min(
+                    1.2,
+                    Math.max(
+                        0.7,
+                        kidRate + tuning[0]
+                    )
+                );
+
+            utterance.pitch =
+                Math.min(
+                    1.2,
+                    Math.max(
+                        0.7,
+                        settings.pitch + tuning[1]
+                    )
+                );
+
+            utterance.onstart = () => {
 
                 if (
-                    companionActive &&
-                    !companionProcessing
+                    generation !== speechGeneration
                 ) {
+                    return;
+                }
 
-                    scheduleCompanionRecognition();
+                setJarvisState(
+                    JARVIS_STATES.SPEAKING
+                );
+
+                // Nunca escuchar mientras JARVIS habla.
+                if (companionRecognition) {
+
+                    try {
+                        companionRecognition.stop();
+                    } catch {}
                 }
             };
 
-        window.speechSynthesis.speak(
-            utterance
-        );
-    };
+            utterance.onend =
+                () => {
 
-    next();
+                    if (
+                        generation !== speechGeneration
+                    ) {
+
+                        finish();
+                        return;
+                    }
+
+                    next();
+                };
+
+            utterance.onerror =
+                event => {
+
+                    console.warn(
+                        "[JARVIS] Error de síntesis:",
+                        event.error
+                    );
+
+                    finish();
+                };
+
+            try {
+
+                window.speechSynthesis.speak(
+                    utterance
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "[JARVIS] No se pudo reproducir la voz:",
+                    error
+                );
+
+                finish();
+            }
+        };
+
+        next();
+    });
 }
 
 // ============================================================
@@ -1322,9 +1409,10 @@ document
 
             saveVoiceSettings();
 
-            speak(
-                "Buenas, señor. Sistemas listos. Estoy a su disposición."
-            );
+            activeSpeechPromise =
+                speak(
+                    "Buenas, señor. Sistemas listos. Estoy a su disposición."
+                );
         }
     );
 
@@ -1383,11 +1471,14 @@ soundButton?.addEventListener(
 
         if (voiceEnabled) {
 
-            speak(
-                "Voz de JARVIS activada."
-            );
+            activeSpeechPromise =
+                speak(
+                    "Voz de JARVIS activada."
+                );
 
         } else {
+
+            speechGeneration += 1;
 
             window.speechSynthesis?.cancel();
 
@@ -1396,10 +1487,13 @@ soundButton?.addEventListener(
             );
 
             if (
-                companionActive
+                companionActive &&
+                !companionProcessing
             ) {
 
-                scheduleCompanionRecognition();
+                scheduleCompanionRecognition(
+                    500
+                );
             }
         }
     }
@@ -1575,7 +1669,10 @@ document
 // 18. CONEXIÓN CON IA / OLLAMA / BACKEND
 // ============================================================
 
-async function requestAssistant(message) {
+async function requestAssistant(
+    message,
+    options = {}
+) {
 
     setJarvisState(
         JARVIS_STATES.THINKING
@@ -1599,10 +1696,78 @@ async function requestAssistant(message) {
                 ? "MODO INFANTIL ACCESIBLE: responde con frases cortas, amables y claras. Usa palabras sencillas, una idea por vez, no uses tono infantilizador, y nunca des consejos médicos ni sustituyas a un adulto responsable. Si la situación puede ser peligrosa, pide hablar con un adulto de confianza.\n\n"
                 : "";
 
-        const enrichedMessage =
+        // ----------------------------------------------------
+        // CONTEXTO DEL MODO ACOMPAÑAMIENTO
+        // ----------------------------------------------------
+
+        let conversationContext =
+            "";
+
+        if (
+            options.companion &&
+            Array.isArray(companionConversation) &&
+            companionConversation.length
+        ) {
+
+            const history =
+                companionConversation
+                    .slice(-12)
+                    .map(item => {
+
+                        const role =
+                            item.role === "user"
+                                ? "Usuario"
+                                : "JARVIS";
+
+                        return `${role}: ${item.text}`;
+                    })
+                    .join("\n");
+
+            conversationContext =
+                `CONVERSACIÓN RECIENTE DEL MODO ACOMPAÑAMIENTO:
+${history}
+
+IMPORTANTE:
+- Mantené el contexto de esta conversación.
+- Si el usuario utiliza expresiones como "él", "ella", "eso", "ahí", "el anterior" o "¿y dónde?", relacioná la pregunta con la conversación reciente.
+- No repitas innecesariamente el contexto.
+- Respondé directamente a la pregunta actual.
+
+`;
+        }
+
+        // ----------------------------------------------------
+        // MEMORIA LOCAL
+        // ----------------------------------------------------
+
+        const memoryContext =
             context.length
-                ? `${childInstructions}Memoria local autorizada: ${context.join(" | ")}\n\nMensaje: ${message}`
-                : `${childInstructions}${message}`;
+                ? `MEMORIA LOCAL AUTORIZADA:
+${context.join(" | ")}
+
+`
+                : "";
+
+        // ----------------------------------------------------
+        // MENSAJE FINAL
+        // ----------------------------------------------------
+
+        const enrichedMessage =
+            `${childInstructions}${memoryContext}${conversationContext}MENSAJE ACTUAL DEL USUARIO:
+${message}`;
+
+        console.log(
+            "[JARVIS] Enviando contexto a IA:",
+            {
+                companion:
+                    options.companion === true,
+
+                history:
+                    options.companion
+                        ? companionConversation.length
+                        : 0
+            }
+        );
 
         const response =
             await fetch(
@@ -1716,18 +1881,22 @@ async function send(
         return null;
     }
 
-    // En modo normal se mantiene el bloqueo.
-    // En acompañamiento se controla desde
-    // processCompanionPhrase().
+    // --------------------------------------------------------
+    // BLOQUEO NORMAL
+    // --------------------------------------------------------
+
     if (
         requestInProgress &&
         !options.companion
     ) {
+
         return null;
     }
 
     if (!options.companion) {
-        requestInProgress = true;
+
+        requestInProgress =
+            true;
     }
 
     addMessage(
@@ -1736,7 +1905,9 @@ async function send(
     );
 
     if (promptInput) {
-        promptInput.value = "";
+
+        promptInput.value =
+            "";
     }
 
     // --------------------------------------------------------
@@ -1756,7 +1927,9 @@ async function send(
         );
 
         if (!options.companion) {
-            requestInProgress = false;
+
+            requestInProgress =
+                false;
         }
 
         return "local-app";
@@ -1775,17 +1948,28 @@ async function send(
     pending.textContent =
         "Procesando su orden, señor…";
 
-    chat.appendChild(pending);
+    chat?.appendChild(
+        pending
+    );
 
-    chat.scrollTop =
-        chat.scrollHeight;
+    if (chat) {
+
+        chat.scrollTop =
+            chat.scrollHeight;
+    }
 
     // --------------------------------------------------------
     // IA
     // --------------------------------------------------------
 
     const smartReply =
-        await requestAssistant(clean);
+        await requestAssistant(
+            clean,
+            {
+                companion:
+                    options.companion === true
+            }
+        );
 
     pending.remove();
 
@@ -1847,7 +2031,9 @@ async function send(
     );
 
     if (!options.companion) {
-        requestInProgress = false;
+
+        requestInProgress =
+            false;
     }
 
     return finalReply;
@@ -2180,32 +2366,43 @@ document
     );
 
 // ============================================================
-// 26. MODO ACOMPAÑAMIENTO — NUEVA VERSIÓN
+// 26. MODO ACOMPAÑAMIENTO — JARVIS CONTINUO
 // ============================================================
 
 /*
-    El modo acompañamiento funciona como una conversación continua.
+    CICLO:
 
-    Antes:
-        - exigía "Jarvis" para cada frase;
-        - send() podía bloquear las siguientes preguntas;
-        - SpeechRecognition podía quedar detenido;
-        - JARVIS podía escucharse a sí mismo.
+        ESCUCHAR
+           ↓
+        FRASE FINAL
+           ↓
+        DETENER MICRÓFONO
+           ↓
+        PROCESAR IA
+           ↓
+        RESPONDER
+           ↓
+        HABLAR
+           ↓
+        TERMINAR VOZ
+           ↓
+        ESPERAR
+           ↓
+        ESCUCHAR NUEVAMENTE
 
-    Ahora:
-        1. Se inicia una sesión.
-        2. Escucha al usuario.
-        3. Detecta la primera pregunta.
-        4. La procesa.
-        5. JARVIS responde.
-        6. El reconocimiento queda pausado mientras habla.
-        7. Cuando termina de hablar, vuelve a escuchar.
-        8. Las siguientes preguntas no necesitan "Jarvis".
-        9. El ciclo continúa hasta pulsar "Detener".
+    Características:
+
+    - No necesita decir "Jarvis" antes de cada pregunta.
+    - Usa una sesión de conversación.
+    - Conserva contexto reciente.
+    - Evita escuchar mientras JARVIS habla.
+    - Se recupera de cortes normales de SpeechRecognition.
+    - No permite dos respuestas simultáneas.
+    - Una sesión vieja nunca puede reactivar el micrófono.
 */
 
 // ------------------------------------------------------------
-// Abrir modo acompañamiento
+// ABRIR MODO ACOMPAÑAMIENTO
 // ------------------------------------------------------------
 
 document
@@ -2231,7 +2428,7 @@ document
     );
 
 // ------------------------------------------------------------
-// Obtener SpeechRecognition
+// OBTENER SPEECH RECOGNITION
 // ------------------------------------------------------------
 
 function getSpeechRecognitionClass() {
@@ -2244,7 +2441,7 @@ function getSpeechRecognitionClass() {
 }
 
 // ------------------------------------------------------------
-// Cancelar reinicio pendiente
+// CANCELAR REINICIO
 // ------------------------------------------------------------
 
 function clearCompanionRestartTimer() {
@@ -2261,14 +2458,25 @@ function clearCompanionRestartTimer() {
 }
 
 // ------------------------------------------------------------
-// Programar reconocimiento
+// PROGRAMAR ESCUCHA
 // ------------------------------------------------------------
 
 function scheduleCompanionRecognition(
-    delay = 700
+    delay = 800,
+    sessionId = companionSessionId
 ) {
 
     if (!companionActive) {
+        return;
+    }
+
+    if (
+        sessionId !== companionSessionId
+    ) {
+        return;
+    }
+
+    if (companionProcessing) {
         return;
     }
 
@@ -2281,7 +2489,17 @@ function scheduleCompanionRecognition(
                 companionRestartTimer =
                     null;
 
-                startCompanionRecognition();
+                if (
+                    !companionActive ||
+                    sessionId !== companionSessionId ||
+                    companionProcessing
+                ) {
+                    return;
+                }
+
+                startCompanionRecognition(
+                    sessionId
+                );
 
             },
             delay
@@ -2289,12 +2507,20 @@ function scheduleCompanionRecognition(
 }
 
 // ------------------------------------------------------------
-// Iniciar reconocimiento
+// INICIAR RECONOCIMIENTO
 // ------------------------------------------------------------
 
-function startCompanionRecognition() {
+function startCompanionRecognition(
+    sessionId = companionSessionId
+) {
 
     if (!companionActive) {
+        return;
+    }
+
+    if (
+        sessionId !== companionSessionId
+    ) {
         return;
     }
 
@@ -2302,7 +2528,10 @@ function startCompanionRecognition() {
         return;
     }
 
-    if (window.speechSynthesis?.speaking) {
+    if (
+        window.speechSynthesis?.speaking ||
+        window.speechSynthesis?.pending
+    ) {
         return;
     }
 
@@ -2320,8 +2549,6 @@ function startCompanionRecognition() {
         return;
     }
 
-    // Si ya está escuchando no creamos otro
-    // reconocimiento.
     if (companionRecognition) {
         return;
     }
@@ -2335,8 +2562,9 @@ function startCompanionRecognition() {
     recognition.lang =
         "es-AR";
 
+    // Una frase por ciclo.
     recognition.continuous =
-        true;
+        false;
 
     recognition.interimResults =
         false;
@@ -2344,9 +2572,24 @@ function startCompanionRecognition() {
     recognition.maxAlternatives =
         1;
 
+    let resultReceived =
+        false;
+
+    // --------------------------------------------------------
+    // START
+    // --------------------------------------------------------
+
     recognition.onstart = () => {
 
-        if (!companionActive) {
+        if (
+            !companionActive ||
+            sessionId !== companionSessionId
+        ) {
+
+            try {
+                recognition.stop();
+            } catch {}
+
             return;
         }
 
@@ -2361,20 +2604,19 @@ function startCompanionRecognition() {
         }
     };
 
+    // --------------------------------------------------------
+    // RESULT
+    // --------------------------------------------------------
+
     recognition.onresult =
         event => {
 
-            if (!companionActive) {
+            if (
+                !companionActive ||
+                sessionId !== companionSessionId
+            ) {
                 return;
             }
-
-            /*
-                Procesamos todos los resultados finales nuevos.
-
-                Esto es importante porque algunos navegadores
-                entregan más de un resultado dentro del mismo
-                evento.
-            */
 
             for (
                 let i = event.resultIndex;
@@ -2398,13 +2640,11 @@ function startCompanionRecognition() {
                     continue;
                 }
 
+                resultReceived =
+                    true;
+
                 const now =
                     Date.now();
-
-                /*
-                    Evita que una misma frase sea procesada
-                    dos veces por Chrome.
-                */
 
                 if (
                     phrase.toLowerCase() ===
@@ -2412,7 +2652,7 @@ function startCompanionRecognition() {
                     now - companionLastPhraseAt < 2500
                 ) {
 
-                    continue;
+                    return;
                 }
 
                 companionLastPhrase =
@@ -2433,34 +2673,31 @@ function startCompanionRecognition() {
                         "Te escuché. Procesando...";
                 }
 
-                /*
-                    No exigimos que el usuario diga "Jarvis".
-
-                    La sesión ya está activa, por lo que todo lo
-                    que diga después se considera parte de la
-                    conversación.
-                */
-
                 processCompanionPhrase(
-                    phrase
+                    phrase,
+                    sessionId
                 );
+
+                return;
             }
         };
+
+    // --------------------------------------------------------
+    // ERROR
+    // --------------------------------------------------------
 
     recognition.onerror =
         event => {
 
             console.warn(
-                "[JARVIS] Error en modo acompañamiento:",
+                "[JARVIS] Acompañamiento:",
                 event.error
             );
 
-            /*
-                Algunos errores son normales cuando el navegador
-                corta SpeechRecognition automáticamente.
-            */
-
-            if (!companionActive) {
+            if (
+                !companionActive ||
+                sessionId !== companionSessionId
+            ) {
                 return;
             }
 
@@ -2469,84 +2706,130 @@ function startCompanionRecognition() {
                 event.error === "service-not-allowed"
             ) {
 
-                if (companionStatus) {
-
-                    companionStatus.textContent =
-                        "El navegador bloqueó el micrófono. Revisá los permisos.";
-                }
-
                 companionRecognition =
                     null;
 
                 companionActive =
                     false;
 
+                clearCompanionRestartTimer();
+
+                if (companionStatus) {
+
+                    companionStatus.textContent =
+                        "El navegador bloqueó el micrófono. Revisá los permisos.";
+                }
+
                 setJarvisState(
                     JARVIS_STATES.ONLINE
                 );
+
+                document
+                    .querySelector(
+                        "#startCompanion"
+                    )
+                    ?.removeAttribute(
+                        "disabled"
+                    );
+
+                document
+                    .querySelector(
+                        "#stopCompanion"
+                    )
+                    ?.setAttribute(
+                        "disabled",
+                        ""
+                    );
 
                 return;
             }
 
             if (
-                event.error === "aborted"
+                event.error === "no-speech" ||
+                event.error === "network" ||
+                event.error === "aborted" ||
+                event.error === "audio-capture"
             ) {
+
+                companionRecognition =
+                    null;
+
+                if (
+                    !companionProcessing &&
+                    companionActive
+                ) {
+
+                    scheduleCompanionRecognition(
+                        event.error === "no-speech"
+                            ? 500
+                            : 1200,
+                        sessionId
+                    );
+                }
+
                 return;
             }
 
             companionRecognition =
                 null;
 
-            scheduleCompanionRecognition(
-                1000
-            );
+            if (
+                companionActive &&
+                !companionProcessing
+            ) {
+
+                scheduleCompanionRecognition(
+                    1200,
+                    sessionId
+                );
+            }
         };
+
+    // --------------------------------------------------------
+    // END
+    // --------------------------------------------------------
 
     recognition.onend = () => {
 
-        /*
-            SpeechRecognition puede finalizar aunque
-            continuous = true.
+        if (
+            companionRecognition ===
+            recognition
+        ) {
 
-            Por eso el modo acompañamiento se reinicia
-            automáticamente mientras la sesión siga activa.
-        */
+            companionRecognition =
+                null;
+        }
 
-        companionRecognition =
-            null;
-
-        if (!companionActive) {
-
-            if (
-                jarvisState ===
-                JARVIS_STATES.LISTENING
-            ) {
-
-                setJarvisState(
-                    JARVIS_STATES.ONLINE
-                );
-            }
+        if (
+            !companionActive ||
+            sessionId !== companionSessionId
+        ) {
 
             return;
         }
 
-        /*
-            Si JARVIS está procesando o hablando,
-            esperamos a que termine.
-        */
+        if (resultReceived) {
+            return;
+        }
 
         if (
             companionProcessing ||
-            window.speechSynthesis?.speaking
+            window.speechSynthesis?.speaking ||
+            window.speechSynthesis?.pending
         ) {
 
             return;
         }
 
         scheduleCompanionRecognition(
-            500
+            500,
+            sessionId
         );
     };
+
+    // --------------------------------------------------------
+    // START REAL
+    // --------------------------------------------------------
 
     try {
 
@@ -2559,38 +2842,47 @@ function startCompanionRecognition() {
             error
         );
 
-        companionRecognition =
-            null;
+        if (
+            companionRecognition ===
+            recognition
+        ) {
 
-        if (companionActive) {
+            companionRecognition =
+                null;
+        }
+
+        if (
+            companionActive &&
+            sessionId === companionSessionId
+        ) {
 
             scheduleCompanionRecognition(
-                1200
+                1200,
+                sessionId
             );
         }
     }
 }
 
 // ------------------------------------------------------------
-// Procesar una frase del acompañamiento
+// PROCESAR FRASE
 // ------------------------------------------------------------
 
 async function processCompanionPhrase(
-    phrase
+    phrase,
+    sessionId = companionSessionId
 ) {
 
-    if (!companionActive) {
+    if (
+        !companionActive ||
+        sessionId !== companionSessionId
+    ) {
         return;
     }
 
     if (!phrase?.trim()) {
         return;
     }
-
-    /*
-        Si ya hay una respuesta en proceso no mandamos
-        otra petición simultáneamente.
-    */
 
     if (companionProcessing) {
 
@@ -2603,10 +2895,11 @@ async function processCompanionPhrase(
         return;
     }
 
+    // Bloqueamos inmediatamente.
     companionProcessing =
         true;
 
-    // Detener reconocimiento actual antes de consultar IA.
+    // Detener reconocimiento actual.
     if (companionRecognition) {
 
         try {
@@ -2627,40 +2920,33 @@ async function processCompanionPhrase(
             "Procesando tu pregunta...";
     }
 
+    /*
+        Guardamos la pregunta antes de consultar la IA.
+
+        requestAssistant() utilizará las intervenciones
+        anteriores como contexto.
+    */
+
+    companionConversation.push({
+        role: "user",
+        text: phrase,
+        timestamp: Date.now()
+    });
+
+    if (
+        companionConversation.length > 30
+    ) {
+
+        companionConversation =
+            companionConversation.slice(-30);
+    }
+
+    let reply =
+        null;
+
     try {
 
-        /*
-            Guardamos las frases de la sesión.
-
-            Esto sirve para diagnóstico y permite ampliar
-            posteriormente el contexto conversacional.
-        */
-
-        companionConversation.push({
-            role: "user",
-            text: phrase,
-            timestamp: Date.now()
-        });
-
-        // Limitamos el historial local para no hacerlo crecer
-        // indefinidamente.
-        if (
-            companionConversation.length > 30
-        ) {
-
-            companionConversation =
-                companionConversation.slice(-30);
-        }
-
-        /*
-            Usamos send() con companion=true.
-
-            Esto evita el bloqueo global de requestInProgress
-            y permite que el modo acompañamiento gestione
-            su propio ciclo.
-        */
-
-        const reply =
+        reply =
             await send(
                 phrase,
                 {
@@ -2668,81 +2954,121 @@ async function processCompanionPhrase(
                 }
             );
 
-        if (reply) {
-
-            companionConversation.push({
-                role: "assistant",
-                text: reply,
-                timestamp: Date.now()
-            });
-
-            if (
-                companionConversation.length > 30
-            ) {
-
-                companionConversation =
-                    companionConversation.slice(-30);
-            }
-        }
-
     } catch (error) {
 
         console.error(
-            "[JARVIS] Error procesando acompañamiento:",
+            "[JARVIS] Error en acompañamiento:",
             error
         );
 
-        setJarvisState(
-            JARVIS_STATES.ONLINE
-        );
+        reply =
+            null;
+    }
 
-        if (companionStatus) {
+    /*
+        El usuario puede haber detenido JARVIS mientras
+        la IA estaba procesando.
+    */
 
-            companionStatus.textContent =
-                "Hubo un problema al procesar la pregunta. Podés intentar nuevamente.";
+    if (
+        !companionActive ||
+        sessionId !== companionSessionId
+    ) {
+
+        companionProcessing =
+            false;
+
+        return;
+    }
+
+    /*
+        No guardamos la señal interna "local-app".
+    */
+
+    if (
+        reply &&
+        reply !== "local-app"
+    ) {
+
+        companionConversation.push({
+            role: "assistant",
+            text: reply,
+            timestamp: Date.now()
+        });
+
+        if (
+            companionConversation.length > 30
+        ) {
+
+            companionConversation =
+                companionConversation.slice(-30);
         }
     }
 
     companionProcessing =
         false;
 
+    if (
+        !companionActive ||
+        sessionId !== companionSessionId
+    ) {
+
+        return;
+    }
+
+    if (companionStatus) {
+
+        companionStatus.textContent =
+            "Respuesta lista. Esperando que termine la voz...";
+    }
+
     /*
-        Si el usuario no detuvo la sesión,
-        esperamos a que la síntesis de voz termine.
+        Esperamos a que JARVIS termine REALMENTE de hablar.
     */
 
-    if (companionActive) {
+    try {
 
-        if (companionStatus) {
+        await activeSpeechPromise;
 
-            companionStatus.textContent =
-                "Respuesta completada. Podés hacer otra pregunta.";
-        }
+    } catch {}
 
-        if (
-            window.speechSynthesis?.speaking
-        ) {
+    /*
+        Pequeña pausa para que Chrome no capture
+        el final de la propia voz de JARVIS.
+    */
 
-            /*
-                speak() llamará a
-                scheduleCompanionRecognition()
-                cuando termine.
+    await wait(850);
 
-                No hacemos nada aquí para evitar dos
-                reconocimientos simultáneos.
-            */
+    if (
+        !companionActive ||
+        sessionId !== companionSessionId
+    ) {
 
-            return;
-        }
-
-        scheduleCompanionRecognition(
-            700
-        );
+        return;
     }
+
+    if (companionProcessing) {
+        return;
+    }
+
+    setJarvisState(
+        JARVIS_STATES.ONLINE
+    );
+
+    if (companionStatus) {
+
+        companionStatus.textContent =
+            "Escuchando... Podés hacer otra pregunta.";
+    }
+
+    scheduleCompanionRecognition(
+        250,
+        sessionId
+    );
 }
 
 // ------------------------------------------------------------
-// Iniciar sesión
+// INICIAR SESIÓN
 // ------------------------------------------------------------
 
 document
@@ -2769,19 +3095,27 @@ document
                 return;
             }
 
-            /*
-                Cancelamos cualquier voz normal anterior.
-            */
+            // Nueva sesión.
+            companionSessionId += 1;
 
-            window.speechSynthesis?.cancel();
+            const sessionId =
+                companionSessionId;
 
             clearCompanionRestartTimer();
+
+            // Cancelar voz anterior.
+            speechGeneration += 1;
+
+            window.speechSynthesis?.cancel();
 
             companionActive =
                 true;
 
             companionProcessing =
                 false;
+
+            companionRecognition =
+                null;
 
             companionConversation =
                 [];
@@ -2815,29 +3149,39 @@ document
                 );
 
             if (startButton) {
-                startButton.disabled = true;
+                startButton.disabled =
+                    true;
             }
 
             if (stopButton) {
-                stopButton.disabled = false;
+                stopButton.disabled =
+                    false;
             }
 
             /*
-                Pequeña pausa para que el navegador registre
-                correctamente el permiso del micrófono.
+                Pausa inicial para que Chrome libere
+                correctamente el motor de reconocimiento.
             */
 
             scheduleCompanionRecognition(
-                250
+                500,
+                sessionId
             );
         }
     );
 
 // ------------------------------------------------------------
-// Detener sesión
+// DETENER SESIÓN
 // ------------------------------------------------------------
 
 function stopCompanion() {
+
+    /*
+        Invalidamos inmediatamente todas las operaciones
+        pendientes.
+    */
+
+    companionSessionId += 1;
 
     companionActive =
         false;
@@ -2847,10 +3191,10 @@ function stopCompanion() {
 
     clearCompanionRestartTimer();
 
-    /*
-        Detener reconocimiento.
-    */
+    // Invalidar voz anterior.
+    speechGeneration += 1;
 
+    // Detener reconocimiento.
     if (companionRecognition) {
 
         try {
@@ -2861,12 +3205,10 @@ function stopCompanion() {
     companionRecognition =
         null;
 
-    /*
-        Detener la voz de JARVIS.
-    */
-
+    // Detener voz.
     window.speechSynthesis?.cancel();
 
+    // Conversación temporal.
     companionConversation =
         [];
 
@@ -3433,11 +3775,49 @@ window.JARVIS = {
             return companionActive;
         },
 
+        isProcessing() {
+
+            return companionProcessing;
+        },
+
+        getSessionId() {
+
+            return companionSessionId;
+        },
+
         getConversation() {
 
             return [
                 ...companionConversation
             ];
+        },
+
+        getStatus() {
+
+            return {
+
+                active:
+                    companionActive,
+
+                processing:
+                    companionProcessing,
+
+                session:
+                    companionSessionId,
+
+                listening:
+                    Boolean(
+                        companionRecognition
+                    ),
+
+                speaking:
+                    Boolean(
+                        window.speechSynthesis?.speaking
+                    ),
+
+                conversationLength:
+                    companionConversation.length
+            };
         }
     }
 };
@@ -3472,6 +3852,5 @@ console.log(
 
 console.log(
     "[JARVIS] Modo acompañamiento:",
-    "CONVERSACIÓN CONTINUA"
+    "CONVERSACIÓN CONTINUA + CONTEXTO"
 );
-```
