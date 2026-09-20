@@ -4585,3 +4585,70 @@ function ejecutarComando(texto) {
         }
     }
 }
+// ============================================================
+// 16. APERTURA MULTIPLATAFORMA (PC, CELULAR Y TV)
+// ============================================================
+
+function abrirAplicacionUniversal(nombreAppKey, dispositivo = "auto") {
+    const appLimpia = String(nombreAppKey || "").toLowerCase().trim();
+    const esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    console.log(`[JARVIS] Solicitud para abrir "${appLimpia}". Dispositivo detectado: ${esMovil ? 'Móvil' : 'PC/Escritorio'}`);
+
+    // Si estás en un Celular / Tablet
+    if (esMovil || dispositivo === "celular") {
+        const esquemasMoviles = {
+            "whatsapp": "whatsapp://send",
+            "youtube": "vnd.youtube://",
+            "spotify": "spotify://",
+            "instagram": "instagram://",
+            "telegram": "tg://resolve",
+            "gmail": "googlegmail://",
+            "maps": "geo:0,0?q=",
+            "chrome": "googlechrome://"
+        };
+
+        let esquema = "";
+        for (const [key, value] of Object.entries(esquemasMoviles)) {
+            if (appLimpia.includes(key)) {
+                esquema = value;
+                break;
+            }
+        }
+
+        if (esquema) {
+            window.location.href = esquema;
+            return `Abriendo ${appLimpia} en el celular...`;
+        }
+    } 
+    
+    // Si estás en la PC (Escritorio)
+    else {
+        // En PC web pura, para abrir apps nativas de Windows (como Steam, Discord, etc.) 
+        // normalmente se usa un protocolo personalizado o se manda la orden a tu backend local de Node.js si lo tenés conectado.
+        const protocolosPC = {
+            "steam": "steam://",
+            "discord": "discord://",
+            "spotify": "spotify://"
+        };
+
+        let linkPc = "";
+        for (const [key, value] of Object.entries(protocolosPC)) {
+            if (appLimpia.includes(key)) {
+                linkPc = value;
+                break;
+            }
+        }
+
+        if (linkPc) {
+            window.location.href = linkPc;
+            return `Abriendo ${appLimpia} en la PC...`;
+        } else {
+            // Si tenés una API local de Node.js corriendo para tu JARVIS de escritorio:
+            // fetch(`http://localhost:3000/abrir?app=${encodeURIComponent(appLimpia)}`);
+            return `Intentando enviar orden a la PC para abrir: ${appLimpia}`;
+        }
+    }
+
+    return `No encontré un método compatible para abrir "${appLimpia}" en este dispositivo.`;
+}
