@@ -1,3 +1,4 @@
+```javascript
 // ============================================================
 // JARVIS — APP.JS
 // Control principal + estados reales del núcleo
@@ -67,396 +68,19 @@ const orb = document.querySelector(".orb");
 let gestureStream;
 let gestureLastActionAt = 0;
 
-// ============================================================
-// 02. ESTADO DEL MODO ACOMPAÑAMIENTO
-// ============================================================
-
 let companionRecognition = null;
 let companionActive = false;
 let companionProcessing = false;
 let companionRestartTimer = null;
-
-// Historial específico del acompañamiento.
-// Se mantiene como espejo del historial general.
 let companionConversation = [];
-
 let companionLastPhrase = "";
 let companionLastPhraseAt = 0;
-
-// Identifica cada sesión.
-// Evita que una operación antigua vuelva a activar el micrófono.
-let companionSessionId = 0;
-
-// Promesa de la voz actualmente en reproducción.
-let activeSpeechPromise = Promise.resolve();
-
-// Generación de voz.
-// Sirve para invalidar una reproducción anterior.
-let speechGeneration = 0;
 
 let pendingLaunch = null;
 let currentRecognition = null;
 
 // ============================================================
-// 03. MOTOR GENERAL DE CONVERSACIÓN
-// ============================================================
-//
-// IMPORTANTE:
-//
-// Este historial NO es la memoria permanente.
-//
-// Sirve para mantener el contexto de la conversación actual:
-//
-// Usuario: ¿Quién fue Manuel Belgrano?
-// JARVIS: ...
-// Usuario: Dame más información.
-// JARVIS: ...
-// Usuario: ¿Dónde nació?
-// JARVIS: ...
-//
-// Funciona en:
-// - Chat normal
-// - Voz normal
-// - Modo acompañamiento
-//
-// ============================================================
-
-let conversationHistory = [];
-let conversationTopic = "";
-let conversationEntities = [];
-let conversationTurn = 0;
-
-const MAX_CONVERSATION_MESSAGES = 30;
-
-// ------------------------------------------------------------
-// NORMALIZAR TEXTO
-// ------------------------------------------------------------
-
-function normalizeConversationText(text) {
-
-    return String(text || "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
-// ------------------------------------------------------------
-// DETECTAR SI ES UNA CONTINUACIÓN
-// ------------------------------------------------------------
-
-function isConversationContinuation(text) {
-
-    const normalized =
-        normalizeConversationText(text);
-
-    if (!normalized) {
-        return false;
-    }
-
-    return /^(y |y que|y cual|y cual es|y donde|y cuando|y como|y por que|y porque|y despues|y luego|y el |y la |y los |y las |y eso|y ese|y esa|y ahi|dame mas|dame mas informacion|contame mas|cuentame mas|explicame mas|amplia|ampliame|seguime contando|que mas|algo mas|mas informacion|informacion adicional|explicame eso|hablame mas|decime mas|como fue|que paso despues|y despues que paso|y entonces|ademas|tambien|otra cosa sobre eso)/i
-        .test(normalized);
-}
-
-// ------------------------------------------------------------
-// DETECTAR CAMBIO DE CONVERSACIÓN
-// ------------------------------------------------------------
-
-function isNewConversationCommand(text) {
-
-    const normalized =
-        normalizeConversationText(text);
-
-    if (!normalized) {
-        return false;
-    }
-
-    return /^(cambiemos de tema|cambiemos el tema|otro tema|hablemos de otra cosa|hablemos de otro tema|dejemos esto|dejemos ese tema|olvida esto|olvidemos esto|empecemos de nuevo|nueva conversacion|reinicia la conversacion|reiniciar conversacion|borrar conversacion|borra la conversacion|empezar de nuevo)/i
-        .test(normalized);
-}
-
-// ------------------------------------------------------------
-// DETECTAR TEMA
-// ------------------------------------------------------------
-
-function detectTopic(text) {
-
-    const clean =
-        String(text || "").trim();
-
-    if (!clean) {
-        return "";
-    }
-
-    // Frases entre comillas.
-    const quoted =
-        clean.match(/["“](.+?)["”]/g);
-
-    if (quoted?.length) {
-
-        return quoted
-            .join(" ")
-            .replace(/["“”]/g, "")
-            .trim();
-    }
-
-    const patterns = [
-
-        /(?:sobre|acerca de|hablame de|hablemos de|informacion sobre|informacion acerca de)\s+(.+)/i,
-
-        /(?:quien es|quién es|quien fue|quién fue|que es|qué es)\s+(.+)/i,
-
-        /(?:donde nacio|dónde nació|cuando murio|cuándo murió)\s+(.+)/i,
-
-        /(?:que sabes de|qué sabes de|contame sobre|cuentame sobre|explícame sobre|explicame sobre)\s+(.+)/i
-
-    ];
-
-    for (const pattern of patterns) {
-
-        const match =
-            clean.match(pattern);
-
-        if (match?.[1]) {
-
-            return match[1]
-                .replace(/[?.!,;:]+$/g, "")
-                .trim();
-        }
-    }
-
-    return "";
-}
-
-// ------------------------------------------------------------
-// EXTRAER POSIBLE ENTIDAD
-// ------------------------------------------------------------
-
-function detectConversationEntity(text) {
-
-    const topic =
-        detectTopic(text);
-
-    if (topic) {
-        return topic;
-    }
-
-    const clean =
-        String(text || "")
-            .replace(/[¿?¡!.,;:]/g, "")
-            .trim();
-
-    if (
-        clean.length >= 3 &&
-        clean.split(/\s+/).length <= 8 &&
-        !isConversationContinuation(clean)
-    ) {
-        return clean;
-    }
-
-    return "";
-}
-
-// ------------------------------------------------------------
-// ACTUALIZAR CONTEXTO
-// ------------------------------------------------------------
-
-function updateConversationContext(
-    userMessage,
-    assistantReply = ""
-) {
-
-    const userText =
-        String(userMessage || "").trim();
-
-    const assistantText =
-        String(assistantReply || "").trim();
-
-    if (!userText) {
-        return;
-    }
-
-    // Si se pidió empezar una conversación nueva,
-    // no guardamos la orden de reinicio.
-    if (isNewConversationCommand(userText)) {
-
-        clearConversation();
-
-        return;
-    }
-
-    conversationTurn += 1;
-
-    const detectedTopic =
-        detectTopic(userText);
-
-    if (
-        detectedTopic &&
-        !isConversationContinuation(userText)
-    ) {
-
-        conversationTopic =
-            detectedTopic;
-    }
-
-    const detectedEntity =
-        detectConversationEntity(userText);
-
-    if (
-        detectedEntity &&
-        !isConversationContinuation(userText)
-    ) {
-
-        conversationEntities.push(
-            detectedEntity
-        );
-
-        conversationEntities =
-            [
-                ...new Set(
-                    conversationEntities
-                )
-            ].slice(-10);
-    }
-
-    conversationHistory.push({
-        role: "user",
-        text: userText,
-        timestamp: Date.now()
-    });
-
-    if (assistantText) {
-
-        conversationHistory.push({
-            role: "assistant",
-            text: assistantText,
-            timestamp: Date.now()
-        });
-    }
-
-    if (
-        conversationHistory.length >
-        MAX_CONVERSATION_MESSAGES
-    ) {
-
-        conversationHistory =
-            conversationHistory.slice(
-                -MAX_CONVERSATION_MESSAGES
-            );
-    }
-}
-
-// ------------------------------------------------------------
-// CONSTRUIR CONTEXTO PARA LA IA
-// ------------------------------------------------------------
-
-function buildConversationContext(
-    currentMessage = ""
-) {
-
-    if (!conversationHistory.length) {
-        return "";
-    }
-
-    const history =
-        conversationHistory
-            .slice(-14)
-            .map(item => {
-
-                const role =
-                    item.role === "user"
-                        ? "Usuario"
-                        : "JARVIS";
-
-                return `${role}: ${item.text}`;
-            })
-            .join("\n");
-
-    const topic =
-        conversationTopic
-            ? `Tema actual de conversación: ${conversationTopic}\n`
-            : "";
-
-    const entities =
-        conversationEntities.length
-            ? `Entidades o personas mencionadas recientemente: ${conversationEntities.join(", ")}\n`
-            : "";
-
-    const continuation =
-        isConversationContinuation(
-            currentMessage
-        );
-
-    return `
-CONTEXTO DE CONVERSACIÓN:
-
-${topic}${entities}
-
-Historial reciente:
-${history}
-
-REGLAS DE CONTEXTO:
-
-- Esta es una conversación continua.
-- Utilizá el historial para interpretar la pregunta actual.
-- La pregunta actual NO debe confundirse con un mensaje aislado.
-- Si el usuario dice "más información", "dame más información", "contame más", "decime más", "¿y después?", "¿y dónde?", "¿y cuándo?", "¿y por qué?", "¿y él?", "¿y ella?", "¿y eso?", "¿qué pasó después?" o expresiones similares, relacioná la pregunta con el tema anterior.
-- Si la pregunta actual contiene pronombres como "él", "ella", "eso", "ese", "esa", "ahí", "lo anterior" o "el anterior", resolvé su referencia usando el historial.
-- Si el usuario continúa hablando del mismo tema, mantené ese tema.
-- Si el usuario hace una pregunta corta que depende claramente del mensaje anterior, respondela utilizando el contexto.
-- No preguntes "¿en qué puedo ayudarte?" si la pregunta puede resolverse utilizando el historial.
-- No reinicies la conversación en cada mensaje.
-- Si el usuario cambia claramente de tema, utilizá el nuevo tema.
-- Si el usuario pide información adicional, no repitas exactamente la respuesta anterior: agregá información nueva o profundizá.
-- Si el usuario pregunta por una persona, lugar, objeto o acontecimiento mencionado anteriormente, asumí esa referencia salvo que exista una ambigüedad real.
-- No menciones este contexto interno.
-- No digas que "recordás mensajes internos".
-- No expliques estas reglas al usuario.
-- Respondé naturalmente como continuación de la conversación.
-
-Estado de la pregunta actual:
-${continuation ? "La pregunta parece ser una CONTINUACIÓN del tema anterior." : "La pregunta puede ser nueva o continuar el tema según su contenido."}
-
-`;
-}
-
-// ------------------------------------------------------------
-// BORRAR CONVERSACIÓN TEMPORAL
-// ------------------------------------------------------------
-
-function clearConversation() {
-
-    conversationHistory = [];
-    conversationTopic = "";
-    conversationEntities = [];
-    conversationTurn = 0;
-
-    companionConversation = [];
-
-    console.log(
-        "[JARVIS] Conversación temporal reiniciada."
-    );
-}
-
-// ------------------------------------------------------------
-// SINCRONIZAR ACOMPAÑAMIENTO
-// ------------------------------------------------------------
-
-function syncCompanionConversation() {
-
-    companionConversation =
-        conversationHistory
-            .slice(-30)
-            .map(item => ({
-                role: item.role,
-                text: item.text,
-                timestamp: item.timestamp
-            }));
-}
-
-// ============================================================
-// 04. CONFIGURACIÓN
+// 02. CONFIGURACIÓN
 // ============================================================
 
 const AI_ENDPOINT =
@@ -512,7 +136,7 @@ const appLabels = {
 };
 
 // ============================================================
-// 05. ESTADOS REALES DE JARVIS
+// 03. ESTADOS REALES DE JARVIS
 // ============================================================
 
 const JARVIS_STATES = {
@@ -567,22 +191,18 @@ function setJarvisState(state) {
 
     document.body.dataset.aiState = state;
 
-    const info =
-        JARVIS_STATE_INFO[state];
+    const info = JARVIS_STATE_INFO[state];
 
     if (systemReadoutTitle) {
-        systemReadoutTitle.textContent =
-            info.title;
+        systemReadoutTitle.textContent = info.title;
     }
 
     if (systemReadoutDetail) {
-        systemReadoutDetail.textContent =
-            info.detail;
+        systemReadoutDetail.textContent = info.detail;
     }
 
     if (statusCardValue) {
-        statusCardValue.textContent =
-            info.label;
+        statusCardValue.textContent = info.label;
     }
 
     if (statusCardBars) {
@@ -590,34 +210,28 @@ function setJarvisState(state) {
         switch (state) {
 
             case JARVIS_STATES.ONLINE:
-                statusCardBars.textContent =
-                    "▰ ▰ ▰ ▰ ▰";
+                statusCardBars.textContent = "▰ ▰ ▰ ▰ ▰";
                 break;
 
             case JARVIS_STATES.LISTENING:
-                statusCardBars.textContent =
-                    "▰ ▰ ▰ ▰ ▱";
+                statusCardBars.textContent = "▰ ▰ ▰ ▰ ▱";
                 break;
 
             case JARVIS_STATES.THINKING:
-                statusCardBars.textContent =
-                    "▰ ▰ ▱ ▱ ▱";
+                statusCardBars.textContent = "▰ ▰ ▱ ▱ ▱";
                 break;
 
             case JARVIS_STATES.SPEAKING:
-                statusCardBars.textContent =
-                    "▰ ▰ ▰ ▰ ▱";
+                statusCardBars.textContent = "▰ ▰ ▰ ▰ ▱";
                 break;
 
             case JARVIS_STATES.OFFLINE:
-                statusCardBars.textContent =
-                    "▱ ▱ ▱ ▱ ▱";
+                statusCardBars.textContent = "▱ ▱ ▱ ▱ ▱";
                 break;
         }
     }
 
     if (core) {
-
         core.setAttribute(
             "aria-label",
             `Estado de JARVIS: ${info.label}`
@@ -625,15 +239,12 @@ function setJarvisState(state) {
     }
 
     window.dispatchEvent(
-        new CustomEvent(
-            "jarvisstatechange",
-            {
-                detail: {
-                    state,
-                    info
-                }
+        new CustomEvent("jarvisstatechange", {
+            detail: {
+                state,
+                info
             }
-        )
+        })
     );
 
     console.log(
@@ -642,15 +253,13 @@ function setJarvisState(state) {
 }
 
 // ============================================================
-// 06. ESTADO INICIAL
+// 04. ESTADO INICIAL
 // ============================================================
 
-setJarvisState(
-    JARVIS_STATES.ONLINE
-);
+setJarvisState(JARVIS_STATES.ONLINE);
 
 // ============================================================
-// 07. RELOJ
+// 05. RELOJ
 // ============================================================
 
 function renderClock() {
@@ -660,14 +269,11 @@ function renderClock() {
     }
 
     clock.textContent =
-        new Intl.DateTimeFormat(
-            "es-AR",
-            {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit"
-            }
-        ).format(new Date());
+        new Intl.DateTimeFormat("es-AR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+        }).format(new Date());
 }
 
 renderClock();
@@ -678,7 +284,7 @@ window.setInterval(
 );
 
 // ============================================================
-// 08. TAREAS
+// 06. TAREAS
 // ============================================================
 
 function tasks() {
@@ -686,9 +292,7 @@ function tasks() {
     try {
 
         return JSON.parse(
-            localStorage.getItem(
-                "jarvis-tasks"
-            ) || "[]"
+            localStorage.getItem("jarvis-tasks") || "[]"
         );
 
     } catch {
@@ -709,33 +313,23 @@ function saveTasks(items) {
 
 function renderTasks() {
 
-    if (
-        !taskProgress ||
-        !nextTask ||
-        !taskList
-    ) {
+    if (!taskProgress || !nextTask || !taskList) {
         return;
     }
 
-    const items =
-        tasks();
+    const items = tasks();
 
     const completed =
-        items.filter(
-            item => item.done
-        ).length;
+        items.filter(item => item.done).length;
 
     taskProgress.textContent =
         `${completed} / ${items.length}`;
 
     const active =
-        items.find(
-            item => !item.done
-        );
+        items.find(item => !item.done);
 
     nextTask.textContent =
-        active?.text ||
-        "Sin recordatorios";
+        active?.text || "Sin recordatorios";
 
     taskList.replaceChildren();
 
@@ -744,9 +338,7 @@ function renderTasks() {
         const empty =
             document.createElement("p");
 
-        empty.className =
-            "empty";
-
+        empty.className = "empty";
         empty.textContent =
             "Sin tareas activas, señor.";
 
@@ -766,11 +358,8 @@ function renderTasks() {
         const check =
             document.createElement("input");
 
-        check.type =
-            "checkbox";
-
-        check.checked =
-            item.done;
+        check.type = "checkbox";
+        check.checked = item.done;
 
         check.setAttribute(
             "aria-label",
@@ -786,8 +375,7 @@ function renderTasks() {
                         task.id === item.id
                             ? {
                                 ...task,
-                                done:
-                                    check.checked
+                                done: check.checked
                             }
                             : task
                     )
@@ -804,14 +392,9 @@ function renderTasks() {
         const remove =
             document.createElement("button");
 
-        remove.type =
-            "button";
-
-        remove.textContent =
-            "×";
-
-        remove.title =
-            "Eliminar tarea";
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.title = "Eliminar tarea";
 
         remove.addEventListener(
             "click",
@@ -839,15 +422,12 @@ function renderTasks() {
 renderTasks();
 
 // ============================================================
-// 09. AGENTE WINDOWS
+// 07. AGENTE WINDOWS
 // ============================================================
 
 async function checkWindowsAgent() {
 
-    if (
-        !agentState ||
-        !agentDetail
-    ) {
+    if (!agentState || !agentDetail) {
         return;
     }
 
@@ -896,7 +476,7 @@ window.setInterval(
 );
 
 // ============================================================
-// 10. TAREAS — EVENTOS
+// 08. TAREAS — EVENTOS
 // ============================================================
 
 document
@@ -909,8 +489,7 @@ document
                 return;
             }
 
-            taskInput.value =
-                "";
+            taskInput.value = "";
 
             taskDialog.showModal();
 
@@ -923,8 +502,7 @@ taskForm?.addEventListener(
     event => {
 
         if (
-            event.submitter?.value !==
-            "save"
+            event.submitter?.value !== "save"
         ) {
             return;
         }
@@ -933,21 +511,16 @@ taskForm?.addEventListener(
             taskInput.value.trim();
 
         if (!task) {
-
             event.preventDefault();
-
             return;
         }
 
         saveTasks([
             ...tasks(),
             {
-                id:
-                    crypto.randomUUID(),
-                text:
-                    task,
-                done:
-                    false
+                id: crypto.randomUUID(),
+                text: task,
+                done: false
             }
         ]);
 
@@ -959,7 +532,7 @@ taskForm?.addEventListener(
 );
 
 // ============================================================
-// 11. MEMORIA LOCAL
+// 09. MEMORIA LOCAL
 // ============================================================
 
 function memories() {
@@ -980,15 +553,11 @@ function memories() {
 
 function renderMemories() {
 
-    if (
-        !memoryCount ||
-        !memoryList
-    ) {
+    if (!memoryCount || !memoryList) {
         return;
     }
 
-    const items =
-        memories();
+    const items = memories();
 
     memoryCount.textContent =
         `${items.length} ${
@@ -1004,8 +573,7 @@ function renderMemories() {
         const empty =
             document.createElement("div");
 
-        empty.className =
-            "empty";
+        empty.className = "empty";
 
         empty.textContent =
             "No hay datos guardados.";
@@ -1037,8 +605,7 @@ document
 
             renderMemories();
 
-            memoryInput.value =
-                "";
+            memoryInput.value = "";
 
             memoryDialog.showModal();
         }
@@ -1049,8 +616,7 @@ memoryForm?.addEventListener(
     event => {
 
         if (
-            event.submitter?.value !==
-            "save"
+            event.submitter?.value !== "save"
         ) {
             return;
         }
@@ -1059,9 +625,7 @@ memoryForm?.addEventListener(
             memoryInput.value.trim();
 
         if (!value) {
-
             event.preventDefault();
-
             return;
         }
 
@@ -1099,7 +663,7 @@ document
     );
 
 // ============================================================
-// 12. BÚSQUEDA WEB — ESTADO
+// 10. BÚSQUEDA WEB — ESTADO
 // ============================================================
 
 window.jarvisLastWebSearch = {
@@ -1109,7 +673,7 @@ window.jarvisLastWebSearch = {
 };
 
 // ============================================================
-// 13. MENSAJES
+// 11. MENSAJES
 // ============================================================
 
 function addMessage(
@@ -1127,6 +691,10 @@ function addMessage(
 
     item.className =
         `message ${type}`;
+
+    // --------------------------------------------------------
+    // TEXTO PRINCIPAL
+    // --------------------------------------------------------
 
     const messageText =
         document.createElement("div");
@@ -1153,52 +721,41 @@ function addMessage(
     ) {
 
         const validSources =
-            options.sources.filter(
-                source => {
+            options.sources.filter(source => {
 
-                    if (
-                        !source ||
-                        typeof source.url !==
-                            "string"
-                    ) {
-                        return false;
-                    }
-
-                    try {
-
-                        const url =
-                            new URL(
-                                source.url
-                            );
-
-                        return (
-                            url.protocol ===
-                                "http:" ||
-                            url.protocol ===
-                                "https:"
-                        );
-
-                    } catch {
-
-                        return false;
-                    }
+                if (
+                    !source ||
+                    typeof source.url !== "string"
+                ) {
+                    return false;
                 }
-            );
+
+                try {
+
+                    const url =
+                        new URL(source.url);
+
+                    return (
+                        url.protocol === "http:" ||
+                        url.protocol === "https:"
+                    );
+
+                } catch {
+
+                    return false;
+                }
+            });
 
         if (validSources.length > 0) {
 
             const sourcesBox =
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             sourcesBox.className =
                 "web-sources";
 
             const title =
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             title.className =
                 "web-sources-title";
@@ -1206,20 +763,15 @@ function addMessage(
             title.textContent =
                 "🌐 Fuentes de Internet";
 
-            sourcesBox.appendChild(
-                title
-            );
+            sourcesBox.appendChild(title);
 
             if (
-                typeof options.query ===
-                    "string" &&
+                typeof options.query === "string" &&
                 options.query.trim()
             ) {
 
                 const query =
-                    document.createElement(
-                        "div"
-                    );
+                    document.createElement("div");
 
                 query.className =
                     "web-search-query";
@@ -1227,9 +779,7 @@ function addMessage(
                 query.textContent =
                     `Búsqueda: ${options.query}`;
 
-                sourcesBox.appendChild(
-                    query
-                );
+                sourcesBox.appendChild(query);
             }
 
             validSources.forEach(
@@ -1240,9 +790,7 @@ function addMessage(
                     try {
 
                         parsedUrl =
-                            new URL(
-                                source.url
-                            );
+                            new URL(source.url);
 
                     } catch {
 
@@ -1250,17 +798,13 @@ function addMessage(
                     }
 
                     const sourceItem =
-                        document.createElement(
-                            "div"
-                        );
+                        document.createElement("div");
 
                     sourceItem.className =
                         "web-source";
 
                     const sourceNumber =
-                        document.createElement(
-                            "span"
-                        );
+                        document.createElement("span");
 
                     sourceNumber.className =
                         "web-source-number";
@@ -1269,17 +813,13 @@ function addMessage(
                         `${index + 1}.`;
 
                     const sourceContent =
-                        document.createElement(
-                            "div"
-                        );
+                        document.createElement("div");
 
                     sourceContent.className =
                         "web-source-content";
 
                     const link =
-                        document.createElement(
-                            "a"
-                        );
+                        document.createElement("a");
 
                     link.className =
                         "web-source-link";
@@ -1302,15 +842,12 @@ function addMessage(
                     );
 
                     if (
-                        typeof source.snippet ===
-                            "string" &&
+                        typeof source.snippet === "string" &&
                         source.snippet.trim()
                     ) {
 
                         const snippet =
-                            document.createElement(
-                                "div"
-                            );
+                            document.createElement("div");
 
                         snippet.className =
                             "web-source-snippet";
@@ -1354,13 +891,12 @@ function addMessage(
         text
     ) {
 
-        activeSpeechPromise =
-            speak(text);
+        speak(text);
     }
 }
 
 // ============================================================
-// 14. VOZ — SPEECH SYNTHESIS
+// 12. VOZ — SPEECH SYNTHESIS
 // ============================================================
 
 let voiceEnabled =
@@ -1379,9 +915,7 @@ function refreshVoices() {
 
 refreshVoices();
 
-if (
-    "speechSynthesis" in window
-) {
+if ("speechSynthesis" in window) {
 
     window.speechSynthesis.onvoiceschanged =
         refreshVoices;
@@ -1390,7 +924,6 @@ if (
 function voiceSettingsData() {
 
     return {
-
         style:
             localStorage.getItem(
                 "jarvis-voice-style"
@@ -1414,22 +947,15 @@ function voiceSettingsData() {
 
 function updateVoiceLabels() {
 
-    if (
-        !voiceRate ||
-        !voicePitch
-    ) {
+    if (!voiceRate || !voicePitch) {
         return;
     }
 
     const rate =
-        Number(
-            voiceRate.value
-        );
+        Number(voiceRate.value);
 
     const pitch =
-        Number(
-            voicePitch.value
-        );
+        Number(voicePitch.value);
 
     if (rateValue) {
 
@@ -1452,17 +978,6 @@ function updateVoiceLabels() {
     }
 }
 
-function wait(ms) {
-
-    return new Promise(
-        resolve =>
-            setTimeout(
-                resolve,
-                ms
-            )
-    );
-}
-
 function speak(text) {
 
     if (
@@ -1480,11 +995,8 @@ function speak(text) {
             );
         }
 
-        return Promise.resolve();
+        return;
     }
-
-    const generation =
-        ++speechGeneration;
 
     window.speechSynthesis.cancel();
 
@@ -1493,9 +1005,7 @@ function speak(text) {
     const voices =
         availableVoices.filter(
             voice =>
-                /^es/i.test(
-                    voice.lang
-                )
+                /^es/i.test(voice.lang)
         );
 
     const natural =
@@ -1517,36 +1027,24 @@ function speak(text) {
 
         voices.find(
             voice =>
-                natural.test(
-                    voice.name
-                ) &&
-                male.test(
-                    voice.name
-                )
+                natural.test(voice.name) &&
+                male.test(voice.name)
         ) ||
 
         voices.find(
             voice =>
-                natural.test(
-                    voice.name
-                ) &&
-                /^es-AR/i.test(
-                    voice.lang
-                )
+                natural.test(voice.name) &&
+                /^es-AR/i.test(voice.lang)
         ) ||
 
         voices.find(
             voice =>
-                male.test(
-                    voice.name
-                )
+                male.test(voice.name)
         ) ||
 
         voices.find(
             voice =>
-                /^es-AR/i.test(
-                    voice.lang
-                )
+                /^es-AR/i.test(voice.lang)
         ) ||
 
         voices[0] ||
@@ -1561,9 +1059,8 @@ function speak(text) {
             professional: [0, -0.01],
             warm: [-0.02, 0.02],
             brief: [0.06, 0]
-        }[
-            settings.style
-        ] || [0, 0];
+        }[settings.style] ||
+        [0, 0];
 
     const phrases =
         String(text)
@@ -1580,183 +1077,120 @@ function speak(text) {
             ) ||
         [text];
 
-    return new Promise(
-        resolve => {
+    let position = 0;
 
-            let position = 0;
-            let finished = false;
+    const next = () => {
 
-            const finish = () => {
+        if (
+            position >= phrases.length
+        ) {
 
-                if (finished) {
-                    return;
-                }
+            setJarvisState(
+                JARVIS_STATES.ONLINE
+            );
 
-                finished = true;
+            // Si estamos en modo acompañamiento,
+            // volvemos a escuchar después de hablar.
+            if (
+                companionActive &&
+                !companionProcessing
+            ) {
 
-                if (
-                    generation ===
-                    speechGeneration
-                ) {
+                scheduleCompanionRecognition();
+            }
 
-                    setJarvisState(
-                        JARVIS_STATES.ONLINE
-                    );
-                }
+            return;
+        }
 
-                resolve();
-            };
+        const utterance =
+            new SpeechSynthesisUtterance(
+                phrases[position++].trim()
+            );
 
-            const next = () => {
+        utterance.voice =
+            selected;
 
-                if (
-                    generation !==
-                    speechGeneration
-                ) {
+        utterance.lang =
+            selected?.lang ||
+            "es-AR";
 
-                    finish();
+        const kidRate =
+            document.body.classList.contains(
+                "kids-mode"
+            )
+                ? Math.min(
+                    settings.rate,
+                    0.9
+                )
+                : settings.rate;
 
-                    return;
-                }
+        utterance.rate =
+            Math.min(
+                1.2,
+                Math.max(
+                    0.7,
+                    kidRate + tuning[0]
+                )
+            );
 
-                if (
-                    position >=
-                    phrases.length
-                ) {
+        utterance.pitch =
+            Math.min(
+                1.2,
+                Math.max(
+                    0.7,
+                    settings.pitch + tuning[1]
+                )
+            );
 
-                    finish();
+        utterance.onstart = () => {
 
-                    return;
-                }
+            setJarvisState(
+                JARVIS_STATES.SPEAKING
+            );
 
-                const phrase =
-                    phrases[position++]
-                        .trim();
-
-                if (!phrase) {
-
-                    next();
-
-                    return;
-                }
-
-                const utterance =
-                    new SpeechSynthesisUtterance(
-                        phrase
-                    );
-
-                utterance.voice =
-                    selected;
-
-                utterance.lang =
-                    selected?.lang ||
-                    "es-AR";
-
-                const kidRate =
-                    document.body.classList.contains(
-                        "kids-mode"
-                    )
-                        ? Math.min(
-                            settings.rate,
-                            0.9
-                        )
-                        : settings.rate;
-
-                utterance.rate =
-                    Math.min(
-                        1.2,
-                        Math.max(
-                            0.7,
-                            kidRate +
-                                tuning[0]
-                        )
-                    );
-
-                utterance.pitch =
-                    Math.min(
-                        1.2,
-                        Math.max(
-                            0.7,
-                            settings.pitch +
-                                tuning[1]
-                        )
-                    );
-
-                utterance.onstart =
-                    () => {
-
-                        if (
-                            generation !==
-                            speechGeneration
-                        ) {
-                            return;
-                        }
-
-                        setJarvisState(
-                            JARVIS_STATES.SPEAKING
-                        );
-
-                        if (
-                            companionRecognition
-                        ) {
-
-                            try {
-                                companionRecognition.stop();
-                            } catch {}
-                        }
-                    };
-
-                utterance.onend =
-                    () => {
-
-                        if (
-                            generation !==
-                            speechGeneration
-                        ) {
-
-                            finish();
-
-                            return;
-                        }
-
-                        next();
-                    };
-
-                utterance.onerror =
-                    event => {
-
-                        console.warn(
-                            "[JARVIS] Error de síntesis:",
-                            event.error
-                        );
-
-                        finish();
-                    };
+            // IMPORTANTE:
+            // pausamos el reconocimiento del modo
+            // acompañamiento mientras JARVIS habla.
+            if (
+                companionActive &&
+                companionRecognition
+            ) {
 
                 try {
+                    companionRecognition.stop();
+                } catch {}
+            }
+        };
 
-                    window.speechSynthesis.speak(
-                        utterance
-                    );
+        utterance.onend =
+            next;
 
-                } catch (error) {
+        utterance.onerror =
+            () => {
 
-                    console.error(
-                        "[JARVIS] No se pudo reproducir la voz:",
-                        error
-                    );
+                setJarvisState(
+                    JARVIS_STATES.ONLINE
+                );
 
-                    finish();
+                if (
+                    companionActive &&
+                    !companionProcessing
+                ) {
+
+                    scheduleCompanionRecognition();
                 }
             };
 
-            next();
-        }
-    );
+        window.speechSynthesis.speak(
+            utterance
+        );
+    };
+
+    next();
 }
 
 // ============================================================
-// 15. ESTUDIO DE VOZ
+// 13. ESTUDIO DE VOZ
 // ============================================================
 
 function saveVoiceSettings() {
@@ -1801,9 +1235,7 @@ function showVoicePicker() {
     const spanish =
         availableVoices.filter(
             voice =>
-                /^es/i.test(
-                    voice.lang
-                )
+                /^es/i.test(voice.lang)
         );
 
     if (!voiceSelect) {
@@ -1812,25 +1244,19 @@ function showVoicePicker() {
 
     voiceSelect.replaceChildren();
 
-    spanish.forEach(
-        voice => {
+    spanish.forEach(voice => {
 
-            const option =
-                document.createElement(
-                    "option"
-                );
+        const option =
+            document.createElement("option");
 
-            option.value =
-                voice.name;
+        option.value =
+            voice.name;
 
-            option.textContent =
-                `${voice.name} — ${voice.lang}`;
+        option.textContent =
+            `${voice.name} — ${voice.lang}`;
 
-            voiceSelect.append(
-                option
-            );
-        }
-    );
+        voiceSelect.append(option);
+    });
 
     const saved =
         localStorage.getItem(
@@ -1896,10 +1322,9 @@ document
 
             saveVoiceSettings();
 
-            activeSpeechPromise =
-                speak(
-                    "Buenas, señor. Sistemas listos. Estoy a su disposición."
-                );
+            speak(
+                "Buenas, señor. Sistemas listos. Estoy a su disposición."
+            );
         }
     );
 
@@ -1918,7 +1343,7 @@ voiceDialog?.addEventListener(
 );
 
 // ============================================================
-// 16. BOTÓN DE SONIDO
+// 14. BOTÓN DE SONIDO
 // ============================================================
 
 function updateSoundButton() {
@@ -1958,14 +1383,11 @@ soundButton?.addEventListener(
 
         if (voiceEnabled) {
 
-            activeSpeechPromise =
-                speak(
-                    "Voz de JARVIS activada."
-                );
+            speak(
+                "Voz de JARVIS activada."
+            );
 
         } else {
-
-            speechGeneration += 1;
 
             window.speechSynthesis?.cancel();
 
@@ -1974,41 +1396,26 @@ soundButton?.addEventListener(
             );
 
             if (
-                companionActive &&
-                !companionProcessing
+                companionActive
             ) {
 
-                scheduleCompanionRecognition(
-                    500
-                );
+                scheduleCompanionRecognition();
             }
         }
     }
 );
 
 // ============================================================
-// 17. RESPUESTA LOCAL DE RESPALDO
+// 15. RESPUESTA LOCAL DE RESPALDO
 // ============================================================
 
 function answer(raw) {
 
     const text =
-        normalizeConversationText(raw);
-
-    // --------------------------------------------------------
-    // CONTINUACIÓN DE CONVERSACIÓN
-    // --------------------------------------------------------
+        raw.toLowerCase();
 
     if (
-        isConversationContinuation(raw) &&
-        conversationTopic
-    ) {
-
-        return `Claro, señor. Continuando con ${conversationTopic}, puedo ampliar la información anterior y explicarle más detalles sobre ese tema.`;
-    }
-
-    if (
-        /quien.*cre|creador|padre/.test(
+        /quien.*cre|quién.*cre|creador|padre/.test(
             text
         )
     ) {
@@ -2017,7 +1424,7 @@ function answer(raw) {
     }
 
     if (
-        /que puedes|funciones/.test(
+        /que puedes|qué puedes|funciones/.test(
             text
         )
     ) {
@@ -2035,7 +1442,7 @@ function answer(raw) {
     }
 
     if (
-        /musica|cancion|spotify|youtube/.test(
+        /musica|música|cancion|canción|spotify|youtube/.test(
             text
         )
     ) {
@@ -2050,7 +1457,7 @@ function answer(raw) {
     }
 
     if (
-        /abri.*(app|aplicaci)|abrir.*(whatsapp|google|mapa)/.test(
+        /abr[ií].*(app|aplicaci)|abrir.*(whatsapp|google|mapa)/.test(
             text
         )
     ) {
@@ -2062,7 +1469,7 @@ function answer(raw) {
 }
 
 // ============================================================
-// 18. DETECTAR APPS LOCALES
+// 16. DETECTAR APPS LOCALES
 // ============================================================
 
 function findLocalAppCommand(raw) {
@@ -2070,29 +1477,22 @@ function findLocalAppCommand(raw) {
     const text =
         String(raw)
             .normalize("NFD")
-            .replace(
-                /[\u0300-\u036f]/g,
-                ""
-            )
+            .replace(/[\u0300-\u036f]/g, "")
             .toLowerCase();
 
     const requested =
-        Object.entries(
-            localApps
-        ).find(
-            ([name]) =>
-                text.includes(
-                    name
-                        .normalize("NFD")
-                        .replace(
-                            /[\u0300-\u036f]/g,
-                            ""
-                        )
-                        .toLowerCase()
-                )
-        );
+        Object.entries(localApps)
+            .find(
+                ([name]) =>
+                    text.includes(
+                        name
+                            .normalize("NFD")
+                            .replace(/[\u0300-\u036f]/g, "")
+                            .toLowerCase()
+                    )
+            );
 
-    return /abri|abrir|abre|abreme|inicia|ejecuta|pone|mostra|muestra|lanza/.test(
+    return /abr[ií]|abrir|abre|ábreme|abreme|inicia|ejecuta|pon[eé]|mostra|muestra|lanz[aá]/.test(
         text
     )
         ? requested?.[1]
@@ -2100,13 +1500,12 @@ function findLocalAppCommand(raw) {
 }
 
 // ============================================================
-// 19. ABRIR APP LOCAL
+// 17. ABRIR APP LOCAL
 // ============================================================
 
 function requestLaunch(app) {
 
-    pendingLaunch =
-        app;
+    pendingLaunch = app;
 
     if (actionDescription) {
 
@@ -2136,11 +1535,9 @@ async function launchLocalApp() {
                             "application/json"
                     },
 
-                    body:
-                        JSON.stringify({
-                            app:
-                                pendingLaunch
-                        })
+                    body: JSON.stringify({
+                        app: pendingLaunch
+                    })
                 }
             );
 
@@ -2162,8 +1559,7 @@ async function launchLocalApp() {
         );
     }
 
-    pendingLaunch =
-        null;
+    pendingLaunch = null;
 
     actionDialog?.close();
 }
@@ -2176,13 +1572,10 @@ document
     );
 
 // ============================================================
-// 20. CONEXIÓN CON IA / OLLAMA / BACKEND
+// 18. CONEXIÓN CON IA / OLLAMA / BACKEND
 // ============================================================
 
-async function requestAssistant(
-    message,
-    options = {}
-) {
+async function requestAssistant(message) {
 
     setJarvisState(
         JARVIS_STATES.THINKING
@@ -2206,61 +1599,10 @@ async function requestAssistant(
                 ? "MODO INFANTIL ACCESIBLE: responde con frases cortas, amables y claras. Usa palabras sencillas, una idea por vez, no uses tono infantilizador, y nunca des consejos médicos ni sustituyas a un adulto responsable. Si la situación puede ser peligrosa, pide hablar con un adulto de confianza.\n\n"
                 : "";
 
-        // ----------------------------------------------------
-        // CONTEXTO GENERAL DE CONVERSACIÓN
-        // ----------------------------------------------------
-        //
-        // ANTES:
-        // El historial solamente se enviaba si:
-        // options.companion === true
-        //
-        // AHORA:
-        // Se utiliza siempre.
-        //
-        // Esto permite continuidad en todo JARVIS.
-        // ----------------------------------------------------
-
-        const conversationContext =
-            buildConversationContext(
-                message
-            );
-
-        // ----------------------------------------------------
-        // MEMORIA LOCAL
-        // ----------------------------------------------------
-
-        const memoryContext =
-            context.length
-                ? `MEMORIA LOCAL AUTORIZADA:
-${context.join(" | ")}
-
-`
-                : "";
-
-        // ----------------------------------------------------
-        // MENSAJE FINAL
-        // ----------------------------------------------------
-
         const enrichedMessage =
-            `${childInstructions}${memoryContext}${conversationContext}MENSAJE ACTUAL DEL USUARIO:
-${message}`;
-
-        console.log(
-            "[JARVIS] Enviando contexto a IA:",
-            {
-                companion:
-                    options.companion === true,
-
-                conversationHistory:
-                    conversationHistory.length,
-
-                topic:
-                    conversationTopic,
-
-                entities:
-                    conversationEntities
-            }
-        );
+            context.length
+                ? `${childInstructions}Memoria local autorizada: ${context.join(" | ")}\n\nMensaje: ${message}`
+                : `${childInstructions}${message}`;
 
         const response =
             await fetch(
@@ -2273,11 +1615,10 @@ ${message}`;
                             "application/json"
                     },
 
-                    body:
-                        JSON.stringify({
-                            message:
-                                enrichedMessage
-                        })
+                    body: JSON.stringify({
+                        message:
+                            enrichedMessage
+                    })
                 }
             );
 
@@ -2304,8 +1645,7 @@ ${message}`;
 
         if (
             !result ||
-            typeof result.reply !==
-                "string" ||
+            typeof result.reply !== "string" ||
             !result.reply.trim()
         ) {
 
@@ -2314,28 +1654,18 @@ ${message}`;
             );
         }
 
-        // ----------------------------------------------------
-        // BÚSQUEDA WEB
-        // ----------------------------------------------------
-        //
-        // NO SE MODIFICA.
-        // ----------------------------------------------------
-
         window.jarvisLastWebSearch = {
 
             enabled:
                 result.webSearch === true,
 
             query:
-                typeof result.searchQuery ===
-                    "string"
+                typeof result.searchQuery === "string"
                     ? result.searchQuery
                     : "",
 
             sources:
-                Array.isArray(
-                    result.sources
-                )
+                Array.isArray(result.sources)
                     ? result.sources
                     : []
         };
@@ -2369,7 +1699,7 @@ ${message}`;
 }
 
 // ============================================================
-// 21. ENVÍO DE MENSAJES
+// 19. ENVÍO DE MENSAJES
 // ============================================================
 
 let requestInProgress = false;
@@ -2386,52 +1716,19 @@ async function send(
         return null;
     }
 
-    // --------------------------------------------------------
-    // NUEVA CONVERSACIÓN
-    // --------------------------------------------------------
-
-    if (
-        isNewConversationCommand(
-            clean
-        )
-    ) {
-
-        clearConversation();
-
-        addMessage(
-            "Entendido, señor. Comenzamos una nueva conversación.",
-            "assistant"
-        );
-
-        if (promptInput) {
-            promptInput.value =
-                "";
-        }
-
-        return "conversation-reset";
-    }
-
-    // --------------------------------------------------------
-    // BLOQUEO NORMAL
-    // --------------------------------------------------------
-
+    // En modo normal se mantiene el bloqueo.
+    // En acompañamiento se controla desde
+    // processCompanionPhrase().
     if (
         requestInProgress &&
         !options.companion
     ) {
-
         return null;
     }
 
     if (!options.companion) {
-
-        requestInProgress =
-            true;
+        requestInProgress = true;
     }
-
-    // --------------------------------------------------------
-    // MOSTRAR USUARIO
-    // --------------------------------------------------------
 
     addMessage(
         clean,
@@ -2439,9 +1736,7 @@ async function send(
     );
 
     if (promptInput) {
-
-        promptInput.value =
-            "";
+        promptInput.value = "";
     }
 
     // --------------------------------------------------------
@@ -2449,34 +1744,19 @@ async function send(
     // --------------------------------------------------------
 
     const localApp =
-        findLocalAppCommand(
-            clean
-        );
+        findLocalAppCommand(clean);
 
     if (localApp) {
 
-        requestLaunch(
-            localApp
-        );
+        requestLaunch(localApp);
 
         addMessage(
             "Listo para abrirlo. Confirme la acción, señor.",
             "assistant"
         );
 
-        // También registramos la interacción
-        // en la conversación general.
-        updateConversationContext(
-            clean,
-            "Listo para abrirlo. Confirme la acción, señor."
-        );
-
-        syncCompanionConversation();
-
         if (!options.companion) {
-
-            requestInProgress =
-                false;
+            requestInProgress = false;
         }
 
         return "local-app";
@@ -2487,9 +1767,7 @@ async function send(
     // --------------------------------------------------------
 
     const pending =
-        document.createElement(
-            "article"
-        );
+        document.createElement("article");
 
     pending.className =
         "message assistant pending";
@@ -2497,28 +1775,17 @@ async function send(
     pending.textContent =
         "Procesando su orden, señor…";
 
-    chat?.appendChild(
-        pending
-    );
+    chat.appendChild(pending);
 
-    if (chat) {
-
-        chat.scrollTop =
-            chat.scrollHeight;
-    }
+    chat.scrollTop =
+        chat.scrollHeight;
 
     // --------------------------------------------------------
     // IA
     // --------------------------------------------------------
 
     const smartReply =
-        await requestAssistant(
-            clean,
-            {
-                companion:
-                    options.companion === true
-            }
-        );
+        await requestAssistant(clean);
 
     pending.remove();
 
@@ -2545,31 +1812,6 @@ async function send(
         setJarvisState(
             JARVIS_STATES.ONLINE
         );
-    }
-
-    // --------------------------------------------------------
-    // ACTUALIZAR CONVERSACIÓN
-    // --------------------------------------------------------
-    //
-    // MUY IMPORTANTE:
-    //
-    // Se hace DESPUÉS de recibir la respuesta.
-    //
-    // Así la pregunta actual NO se duplica dentro
-    // del contexto que acaba de recibir la IA.
-    // --------------------------------------------------------
-
-    if (
-        finalReply &&
-        finalReply !== "local-app"
-    ) {
-
-        updateConversationContext(
-            clean,
-            finalReply
-        );
-
-        syncCompanionConversation();
     }
 
     // --------------------------------------------------------
@@ -2605,16 +1847,14 @@ async function send(
     );
 
     if (!options.companion) {
-
-        requestInProgress =
-            false;
+        requestInProgress = false;
     }
 
     return finalReply;
 }
 
 // ============================================================
-// 22. COMPOSER
+// 20. COMPOSER
 // ============================================================
 
 composer?.addEventListener(
@@ -2630,13 +1870,11 @@ composer?.addEventListener(
 );
 
 // ============================================================
-// 23. SUGERENCIAS
+// 21. SUGERENCIAS
 // ============================================================
 
 document
-    .querySelectorAll(
-        "[data-prompt]"
-    )
+    .querySelectorAll("[data-prompt]")
     .forEach(button => {
 
         button.addEventListener(
@@ -2651,7 +1889,7 @@ document
     });
 
 // ============================================================
-// 24. RECONOCIMIENTO DE VOZ
+// 22. RECONOCIMIENTO DE VOZ
 // ============================================================
 
 voiceButton?.addEventListener(
@@ -2691,17 +1929,16 @@ voiceButton?.addEventListener(
         recognition.continuous =
             false;
 
-        recognition.onstart =
-            () => {
+        recognition.onstart = () => {
 
-                setJarvisState(
-                    JARVIS_STATES.LISTENING
-                );
+            setJarvisState(
+                JARVIS_STATES.LISTENING
+            );
 
-                voiceButton.classList.add(
-                    "is-listening"
-                );
-            };
+            voiceButton.classList.add(
+                "is-listening"
+            );
+        };
 
         recognition.onresult =
             event => {
@@ -2711,9 +1948,7 @@ voiceButton?.addEventListener(
                         .transcript
                         .trim();
 
-                send(
-                    transcript
-                );
+                send(transcript);
             };
 
         recognition.onerror =
@@ -2734,26 +1969,25 @@ voiceButton?.addEventListener(
                 );
             };
 
-        recognition.onend =
-            () => {
+        recognition.onend = () => {
 
-                currentRecognition =
-                    null;
+            currentRecognition =
+                null;
 
-                voiceButton.classList.remove(
-                    "is-listening"
+            voiceButton.classList.remove(
+                "is-listening"
+            );
+
+            if (
+                jarvisState ===
+                JARVIS_STATES.LISTENING
+            ) {
+
+                setJarvisState(
+                    JARVIS_STATES.ONLINE
                 );
-
-                if (
-                    jarvisState ===
-                    JARVIS_STATES.LISTENING
-                ) {
-
-                    setJarvisState(
-                        JARVIS_STATES.ONLINE
-                    );
-                }
-            };
+            }
+        };
 
         try {
 
@@ -2777,13 +2011,11 @@ voiceButton?.addEventListener(
 );
 
 // ============================================================
-// 25. MÓDULOS
+// 23. MÓDULOS
 // ============================================================
 
 document
-    .querySelectorAll(
-        "[data-action]"
-    )
+    .querySelectorAll("[data-action]")
     .forEach(button => {
 
         button.addEventListener(
@@ -2827,13 +2059,11 @@ document
     });
 
 // ============================================================
-// 26. RUTINAS
+// 24. RUTINAS
 // ============================================================
 
 document
-    .querySelectorAll(
-        "[data-routine]"
-    )
+    .querySelectorAll("[data-routine]")
     .forEach(button => {
 
         button.addEventListener(
@@ -2848,12 +2078,10 @@ document
     });
 
 // ============================================================
-// 27. MODO ACCESIBLE
+// 25. MODO ACCESIBLE
 // ============================================================
 
-function setAccessibleMode(
-    enabled
-) {
+function setAccessibleMode(enabled) {
 
     document.body.classList.toggle(
         "accessible",
@@ -2888,9 +2116,7 @@ setAccessibleMode(
 );
 
 document
-    .querySelector(
-        "#seniorMode"
-    )
+    .querySelector("#seniorMode")
     ?.addEventListener(
         "click",
         () =>
@@ -2901,9 +2127,7 @@ document
             )
     );
 
-function setKidsMode(
-    enabled
-) {
+function setKidsMode(enabled) {
 
     document.body.classList.toggle(
         "kids-mode",
@@ -2912,9 +2136,7 @@ function setKidsMode(
 
     localStorage.setItem(
         "jarvis-kids-mode",
-        enabled
-            ? "on"
-            : "off"
+        enabled ? "on" : "off"
     );
 
     const button =
@@ -2946,9 +2168,7 @@ setKidsMode(
 );
 
 document
-    .querySelector(
-        "#kidsMode"
-    )
+    .querySelector("#kidsMode")
     ?.addEventListener(
         "click",
         () =>
@@ -2960,24 +2180,36 @@ document
     );
 
 // ============================================================
-// 28. MODO ACOMPAÑAMIENTO — JARVIS CONTINUO
-// ============================================================
-//
-// Ahora el acompañamiento utiliza el MISMO motor general
-// de conversación que el chat normal.
-//
-// Ya no existe un contexto separado para la IA.
-//
+// 26. MODO ACOMPAÑAMIENTO — NUEVA VERSIÓN
 // ============================================================
 
+/*
+    El modo acompañamiento funciona como una conversación continua.
+
+    Antes:
+        - exigía "Jarvis" para cada frase;
+        - send() podía bloquear las siguientes preguntas;
+        - SpeechRecognition podía quedar detenido;
+        - JARVIS podía escucharse a sí mismo.
+
+    Ahora:
+        1. Se inicia una sesión.
+        2. Escucha al usuario.
+        3. Detecta la primera pregunta.
+        4. La procesa.
+        5. JARVIS responde.
+        6. El reconocimiento queda pausado mientras habla.
+        7. Cuando termina de hablar, vuelve a escuchar.
+        8. Las siguientes preguntas no necesitan "Jarvis".
+        9. El ciclo continúa hasta pulsar "Detener".
+*/
+
 // ------------------------------------------------------------
-// ABRIR MODO ACOMPAÑAMIENTO
+// Abrir modo acompañamiento
 // ------------------------------------------------------------
 
 document
-    .querySelector(
-        "#companionMode"
-    )
+    .querySelector("#companionMode")
     ?.addEventListener(
         "click",
         () => {
@@ -2999,7 +2231,7 @@ document
     );
 
 // ------------------------------------------------------------
-// OBTENER SPEECH RECOGNITION
+// Obtener SpeechRecognition
 // ------------------------------------------------------------
 
 function getSpeechRecognitionClass() {
@@ -3012,7 +2244,7 @@ function getSpeechRecognitionClass() {
 }
 
 // ------------------------------------------------------------
-// CANCELAR REINICIO
+// Cancelar reinicio pendiente
 // ------------------------------------------------------------
 
 function clearCompanionRestartTimer() {
@@ -3029,26 +2261,14 @@ function clearCompanionRestartTimer() {
 }
 
 // ------------------------------------------------------------
-// PROGRAMAR ESCUCHA
+// Programar reconocimiento
 // ------------------------------------------------------------
 
 function scheduleCompanionRecognition(
-    delay = 800,
-    sessionId = companionSessionId
+    delay = 700
 ) {
 
     if (!companionActive) {
-        return;
-    }
-
-    if (
-        sessionId !==
-        companionSessionId
-    ) {
-        return;
-    }
-
-    if (companionProcessing) {
         return;
     }
 
@@ -3061,18 +2281,7 @@ function scheduleCompanionRecognition(
                 companionRestartTimer =
                     null;
 
-                if (
-                    !companionActive ||
-                    sessionId !==
-                        companionSessionId ||
-                    companionProcessing
-                ) {
-                    return;
-                }
-
-                startCompanionRecognition(
-                    sessionId
-                );
+                startCompanionRecognition();
 
             },
             delay
@@ -3080,21 +2289,12 @@ function scheduleCompanionRecognition(
 }
 
 // ------------------------------------------------------------
-// INICIAR RECONOCIMIENTO
+// Iniciar reconocimiento
 // ------------------------------------------------------------
 
-function startCompanionRecognition(
-    sessionId = companionSessionId
-) {
+function startCompanionRecognition() {
 
     if (!companionActive) {
-        return;
-    }
-
-    if (
-        sessionId !==
-        companionSessionId
-    ) {
         return;
     }
 
@@ -3102,10 +2302,7 @@ function startCompanionRecognition(
         return;
     }
 
-    if (
-        window.speechSynthesis?.speaking ||
-        window.speechSynthesis?.pending
-    ) {
+    if (window.speechSynthesis?.speaking) {
         return;
     }
 
@@ -3123,6 +2320,8 @@ function startCompanionRecognition(
         return;
     }
 
+    // Si ya está escuchando no creamos otro
+    // reconocimiento.
     if (companionRecognition) {
         return;
     }
@@ -3137,7 +2336,7 @@ function startCompanionRecognition(
         "es-AR";
 
     recognition.continuous =
-        false;
+        true;
 
     recognition.interimResults =
         false;
@@ -3145,60 +2344,41 @@ function startCompanionRecognition(
     recognition.maxAlternatives =
         1;
 
-    let resultReceived =
-        false;
+    recognition.onstart = () => {
 
-    // --------------------------------------------------------
-    // START
-    // --------------------------------------------------------
+        if (!companionActive) {
+            return;
+        }
 
-    recognition.onstart =
-        () => {
+        setJarvisState(
+            JARVIS_STATES.LISTENING
+        );
 
-            if (
-                !companionActive ||
-                sessionId !==
-                    companionSessionId
-            ) {
+        if (companionStatus) {
 
-                try {
-                    recognition.stop();
-                } catch {}
-
-                return;
-            }
-
-            setJarvisState(
-                JARVIS_STATES.LISTENING
-            );
-
-            if (companionStatus) {
-
-                companionStatus.textContent =
-                    "Escuchando... Podés hablar normalmente.";
-            }
-        };
-
-    // --------------------------------------------------------
-    // RESULT
-    // --------------------------------------------------------
+            companionStatus.textContent =
+                "Escuchando... Podés hablar normalmente.";
+        }
+    };
 
     recognition.onresult =
         event => {
 
-            if (
-                !companionActive ||
-                sessionId !==
-                    companionSessionId
-            ) {
+            if (!companionActive) {
                 return;
             }
 
+            /*
+                Procesamos todos los resultados finales nuevos.
+
+                Esto es importante porque algunos navegadores
+                entregan más de un resultado dentro del mismo
+                evento.
+            */
+
             for (
-                let i =
-                    event.resultIndex;
-                i <
-                    event.results.length;
+                let i = event.resultIndex;
+                i < event.results.length;
                 i++
             ) {
 
@@ -3218,21 +2398,21 @@ function startCompanionRecognition(
                     continue;
                 }
 
-                resultReceived =
-                    true;
-
                 const now =
                     Date.now();
+
+                /*
+                    Evita que una misma frase sea procesada
+                    dos veces por Chrome.
+                */
 
                 if (
                     phrase.toLowerCase() ===
                         companionLastPhrase.toLowerCase() &&
-                    now -
-                        companionLastPhraseAt <
-                        2500
+                    now - companionLastPhraseAt < 2500
                 ) {
 
-                    return;
+                    continue;
                 }
 
                 companionLastPhrase =
@@ -3253,49 +2433,41 @@ function startCompanionRecognition(
                         "Te escuché. Procesando...";
                 }
 
-                processCompanionPhrase(
-                    phrase,
-                    sessionId
-                );
+                /*
+                    No exigimos que el usuario diga "Jarvis".
 
-                return;
+                    La sesión ya está activa, por lo que todo lo
+                    que diga después se considera parte de la
+                    conversación.
+                */
+
+                processCompanionPhrase(
+                    phrase
+                );
             }
         };
-
-    // --------------------------------------------------------
-    // ERROR
-    // --------------------------------------------------------
 
     recognition.onerror =
         event => {
 
             console.warn(
-                "[JARVIS] Acompañamiento:",
+                "[JARVIS] Error en modo acompañamiento:",
                 event.error
             );
 
-            if (
-                !companionActive ||
-                sessionId !==
-                    companionSessionId
-            ) {
+            /*
+                Algunos errores son normales cuando el navegador
+                corta SpeechRecognition automáticamente.
+            */
+
+            if (!companionActive) {
                 return;
             }
 
             if (
-                event.error ===
-                    "not-allowed" ||
-                event.error ===
-                    "service-not-allowed"
+                event.error === "not-allowed" ||
+                event.error === "service-not-allowed"
             ) {
-
-                companionRecognition =
-                    null;
-
-                companionActive =
-                    false;
-
-                clearCompanionRestartTimer();
 
                 if (companionStatus) {
 
@@ -3303,123 +2475,78 @@ function startCompanionRecognition(
                         "El navegador bloqueó el micrófono. Revisá los permisos.";
                 }
 
+                companionRecognition =
+                    null;
+
+                companionActive =
+                    false;
+
                 setJarvisState(
                     JARVIS_STATES.ONLINE
                 );
-
-                document
-                    .querySelector(
-                        "#startCompanion"
-                    )
-                    ?.removeAttribute(
-                        "disabled"
-                    );
-
-                document
-                    .querySelector(
-                        "#stopCompanion"
-                    )
-                    ?.setAttribute(
-                        "disabled",
-                        ""
-                    );
 
                 return;
             }
 
             if (
-                event.error ===
-                    "no-speech" ||
-                event.error ===
-                    "network" ||
-                event.error ===
-                    "aborted" ||
-                event.error ===
-                    "audio-capture"
+                event.error === "aborted"
             ) {
-
-                companionRecognition =
-                    null;
-
-                if (
-                    !companionProcessing &&
-                    companionActive
-                ) {
-
-                    scheduleCompanionRecognition(
-                        event.error ===
-                            "no-speech"
-                            ? 500
-                            : 1200,
-                        sessionId
-                    );
-                }
-
                 return;
             }
 
             companionRecognition =
                 null;
 
-            if (
-                companionActive &&
-                !companionProcessing
-            ) {
-
-                scheduleCompanionRecognition(
-                    1200,
-                    sessionId
-                );
-            }
-        };
-
-    // --------------------------------------------------------
-    // END
-    // --------------------------------------------------------
-
-    recognition.onend =
-        () => {
-
-            if (
-                companionRecognition ===
-                recognition
-            ) {
-
-                companionRecognition =
-                    null;
-            }
-
-            if (
-                !companionActive ||
-                sessionId !==
-                    companionSessionId
-            ) {
-
-                return;
-            }
-
-            if (resultReceived) {
-                return;
-            }
-
-            if (
-                companionProcessing ||
-                window.speechSynthesis?.speaking ||
-                window.speechSynthesis?.pending
-            ) {
-
-                return;
-            }
-
             scheduleCompanionRecognition(
-                500,
-                sessionId
+                1000
             );
         };
 
-    // --------------------------------------------------------
-    // START REAL
-    // --------------------------------------------------------
+    recognition.onend = () => {
+
+        /*
+            SpeechRecognition puede finalizar aunque
+            continuous = true.
+
+            Por eso el modo acompañamiento se reinicia
+            automáticamente mientras la sesión siga activa.
+        */
+
+        companionRecognition =
+            null;
+
+        if (!companionActive) {
+
+            if (
+                jarvisState ===
+                JARVIS_STATES.LISTENING
+            ) {
+
+                setJarvisState(
+                    JARVIS_STATES.ONLINE
+                );
+            }
+
+            return;
+        }
+
+        /*
+            Si JARVIS está procesando o hablando,
+            esperamos a que termine.
+        */
+
+        if (
+            companionProcessing ||
+            window.speechSynthesis?.speaking
+        ) {
+
+            return;
+        }
+
+        scheduleCompanionRecognition(
+            500
+        );
+    };
 
     try {
 
@@ -3432,49 +2559,38 @@ function startCompanionRecognition(
             error
         );
 
-        if (
-            companionRecognition ===
-            recognition
-        ) {
+        companionRecognition =
+            null;
 
-            companionRecognition =
-                null;
-        }
-
-        if (
-            companionActive &&
-            sessionId ===
-                companionSessionId
-        ) {
+        if (companionActive) {
 
             scheduleCompanionRecognition(
-                1200,
-                sessionId
+                1200
             );
         }
     }
 }
 
 // ------------------------------------------------------------
-// PROCESAR FRASE
+// Procesar una frase del acompañamiento
 // ------------------------------------------------------------
 
 async function processCompanionPhrase(
-    phrase,
-    sessionId = companionSessionId
+    phrase
 ) {
 
-    if (
-        !companionActive ||
-        sessionId !==
-            companionSessionId
-    ) {
+    if (!companionActive) {
         return;
     }
 
     if (!phrase?.trim()) {
         return;
     }
+
+    /*
+        Si ya hay una respuesta en proceso no mandamos
+        otra petición simultáneamente.
+    */
 
     if (companionProcessing) {
 
@@ -3487,11 +2603,10 @@ async function processCompanionPhrase(
         return;
     }
 
-    // Bloqueamos inmediatamente.
     companionProcessing =
         true;
 
-    // Detener reconocimiento actual.
+    // Detener reconocimiento actual antes de consultar IA.
     if (companionRecognition) {
 
         try {
@@ -3512,25 +2627,40 @@ async function processCompanionPhrase(
             "Procesando tu pregunta...";
     }
 
-    // --------------------------------------------------------
-    // IMPORTANTE:
-    //
-    // YA NO HACEMOS:
-    //
-    // companionConversation.push(user)
-    //
-    // antes de send().
-    //
-    // El motor general registra la interacción DESPUÉS
-    // de obtener la respuesta.
-    // --------------------------------------------------------
-
-    let reply =
-        null;
-
     try {
 
-        reply =
+        /*
+            Guardamos las frases de la sesión.
+
+            Esto sirve para diagnóstico y permite ampliar
+            posteriormente el contexto conversacional.
+        */
+
+        companionConversation.push({
+            role: "user",
+            text: phrase,
+            timestamp: Date.now()
+        });
+
+        // Limitamos el historial local para no hacerlo crecer
+        // indefinidamente.
+        if (
+            companionConversation.length > 30
+        ) {
+
+            companionConversation =
+                companionConversation.slice(-30);
+        }
+
+        /*
+            Usamos send() con companion=true.
+
+            Esto evita el bloqueo global de requestInProgress
+            y permite que el modo acompañamiento gestione
+            su propio ciclo.
+        */
+
+        const reply =
             await send(
                 phrase,
                 {
@@ -3538,110 +2668,85 @@ async function processCompanionPhrase(
                 }
             );
 
+        if (reply) {
+
+            companionConversation.push({
+                role: "assistant",
+                text: reply,
+                timestamp: Date.now()
+            });
+
+            if (
+                companionConversation.length > 30
+            ) {
+
+                companionConversation =
+                    companionConversation.slice(-30);
+            }
+        }
+
     } catch (error) {
 
         console.error(
-            "[JARVIS] Error en acompañamiento:",
+            "[JARVIS] Error procesando acompañamiento:",
             error
         );
 
-        reply =
-            null;
+        setJarvisState(
+            JARVIS_STATES.ONLINE
+        );
+
+        if (companionStatus) {
+
+            companionStatus.textContent =
+                "Hubo un problema al procesar la pregunta. Podés intentar nuevamente.";
+        }
     }
-
-    /*
-        El usuario puede haber detenido JARVIS mientras
-        la IA estaba procesando.
-    */
-
-    if (
-        !companionActive ||
-        sessionId !==
-            companionSessionId
-    ) {
-
-        companionProcessing =
-            false;
-
-        return;
-    }
-
-    // Sincronizar el historial del acompañamiento
-    // con la conversación general.
-    syncCompanionConversation();
 
     companionProcessing =
         false;
 
-    if (
-        !companionActive ||
-        sessionId !==
-            companionSessionId
-    ) {
-
-        return;
-    }
-
-    if (companionStatus) {
-
-        companionStatus.textContent =
-            "Respuesta lista. Esperando que termine la voz...";
-    }
-
     /*
-        Esperamos a que JARVIS termine REALMENTE de hablar.
+        Si el usuario no detuvo la sesión,
+        esperamos a que la síntesis de voz termine.
     */
 
-    try {
+    if (companionActive) {
 
-        await activeSpeechPromise;
+        if (companionStatus) {
 
-    } catch {}
+            companionStatus.textContent =
+                "Respuesta completada. Podés hacer otra pregunta.";
+        }
 
-    /*
-        Pequeña pausa para que Chrome no capture
-        el final de la propia voz de JARVIS.
-    */
+        if (
+            window.speechSynthesis?.speaking
+        ) {
 
-    await wait(850);
+            /*
+                speak() llamará a
+                scheduleCompanionRecognition()
+                cuando termine.
 
-    if (
-        !companionActive ||
-        sessionId !==
-            companionSessionId
-    ) {
+                No hacemos nada aquí para evitar dos
+                reconocimientos simultáneos.
+            */
 
-        return;
+            return;
+        }
+
+        scheduleCompanionRecognition(
+            700
+        );
     }
-
-    if (companionProcessing) {
-        return;
-    }
-
-    setJarvisState(
-        JARVIS_STATES.ONLINE
-    );
-
-    if (companionStatus) {
-
-        companionStatus.textContent =
-            "Escuchando... Podés hacer otra pregunta.";
-    }
-
-    scheduleCompanionRecognition(
-        250,
-        sessionId
-    );
 }
 
 // ------------------------------------------------------------
-// INICIAR SESIÓN
+// Iniciar sesión
 // ------------------------------------------------------------
 
 document
-    .querySelector(
-        "#startCompanion"
-    )
+    .querySelector("#startCompanion")
     ?.addEventListener(
         "click",
         () => {
@@ -3664,18 +2769,13 @@ document
                 return;
             }
 
-            // Nueva sesión.
-            companionSessionId += 1;
-
-            const sessionId =
-                companionSessionId;
-
-            clearCompanionRestartTimer();
-
-            // Cancelar voz anterior.
-            speechGeneration += 1;
+            /*
+                Cancelamos cualquier voz normal anterior.
+            */
 
             window.speechSynthesis?.cancel();
+
+            clearCompanionRestartTimer();
 
             companionActive =
                 true;
@@ -3683,19 +2783,8 @@ document
             companionProcessing =
                 false;
 
-            companionRecognition =
-                null;
-
-            // ------------------------------------------------
-            // IMPORTANTE:
-            //
-            // NO borramos conversationHistory.
-            //
-            // El acompañamiento continúa utilizando el
-            // contexto general de JARVIS.
-            // ------------------------------------------------
-
-            syncCompanionConversation();
+            companionConversation =
+                [];
 
             companionLastPhrase =
                 "";
@@ -3712,9 +2801,7 @@ document
             if (companionTranscript) {
 
                 companionTranscript.textContent =
-                    conversationHistory.length
-                        ? "JARVIS retomó el contexto de la conversación. Hablá cuando quieras."
-                        : "JARVIS está listo. Hablá cuando quieras.";
+                    "JARVIS está listo. Hablá cuando quieras.";
             }
 
             const startButton =
@@ -3728,36 +2815,29 @@ document
                 );
 
             if (startButton) {
-
-                startButton.disabled =
-                    true;
+                startButton.disabled = true;
             }
 
             if (stopButton) {
-
-                stopButton.disabled =
-                    false;
+                stopButton.disabled = false;
             }
 
+            /*
+                Pequeña pausa para que el navegador registre
+                correctamente el permiso del micrófono.
+            */
+
             scheduleCompanionRecognition(
-                500,
-                sessionId
+                250
             );
         }
     );
 
 // ------------------------------------------------------------
-// DETENER SESIÓN
+// Detener sesión
 // ------------------------------------------------------------
 
 function stopCompanion() {
-
-    /*
-        Invalidamos inmediatamente todas las operaciones
-        pendientes.
-    */
-
-    companionSessionId += 1;
 
     companionActive =
         false;
@@ -3767,10 +2847,10 @@ function stopCompanion() {
 
     clearCompanionRestartTimer();
 
-    // Invalidar voz anterior.
-    speechGeneration += 1;
+    /*
+        Detener reconocimiento.
+    */
 
-    // Detener reconocimiento.
     if (companionRecognition) {
 
         try {
@@ -3781,18 +2861,14 @@ function stopCompanion() {
     companionRecognition =
         null;
 
-    // Detener voz.
-    window.speechSynthesis?.cancel();
-
     /*
-        IMPORTANTE:
-        NO borramos conversationHistory.
-
-        Detener el micrófono no debe borrar la conversación
-        general.
+        Detener la voz de JARVIS.
     */
 
-    syncCompanionConversation();
+    window.speechSynthesis?.cancel();
+
+    companionConversation =
+        [];
 
     companionLastPhrase =
         "";
@@ -3813,17 +2889,13 @@ function stopCompanion() {
     }
 
     document
-        .querySelector(
-            "#startCompanion"
-        )
+        .querySelector("#startCompanion")
         ?.removeAttribute(
             "disabled"
         );
 
     document
-        .querySelector(
-            "#stopCompanion"
-        )
+        .querySelector("#stopCompanion")
         ?.setAttribute(
             "disabled",
             ""
@@ -3839,9 +2911,7 @@ function stopCompanion() {
 }
 
 document
-    .querySelector(
-        "#stopCompanion"
-    )
+    .querySelector("#stopCompanion")
     ?.addEventListener(
         "click",
         stopCompanion
@@ -3853,7 +2923,7 @@ companionDialog?.addEventListener(
 );
 
 // ============================================================
-// 29. CONTROL GESTUAL
+// 27. CONTROL GESTUAL
 // ============================================================
 
 async function startGestures() {
@@ -3885,11 +2955,9 @@ async function startGestures() {
             await navigator.mediaDevices.getUserMedia(
                 {
                     video: {
-                        facingMode:
-                            "user"
+                        facingMode: "user"
                     },
-                    audio:
-                        false
+                    audio: false
                 }
             );
 
@@ -3899,140 +2967,115 @@ async function startGestures() {
         await gestureVideo.play();
 
         const context =
-            gestureCanvas.getContext(
-                "2d"
-            );
+            gestureCanvas.getContext("2d");
 
-        let facePoints =
-            null;
+        let facePoints = null;
+        let faceLastSeen = 0;
 
-        let faceLastSeen =
-            0;
+        const drawFaceHud = () => {
 
-        const drawFaceHud =
-            () => {
-
-                if (
-                    !facePoints ||
-                    Date.now() -
-                        faceLastSeen >
-                        1200
-                ) {
-
-                    if (faceStatus) {
-
-                        faceStatus.textContent =
-                            "ROSTRO · BUSCANDO";
-                    }
-
-                    return false;
-                }
-
-                const xs =
-                    facePoints.map(
-                        point =>
-                            point.x *
-                            gestureCanvas.width
-                    );
-
-                const ys =
-                    facePoints.map(
-                        point =>
-                            point.y *
-                            gestureCanvas.height
-                    );
-
-                const left =
-                    Math.min(
-                        ...xs
-                    );
-
-                const right =
-                    Math.max(
-                        ...xs
-                    );
-
-                const top =
-                    Math.min(
-                        ...ys
-                    );
-
-                const bottom =
-                    Math.max(
-                        ...ys
-                    );
-
-                context.save();
-
-                context.strokeStyle =
-                    "#ff6258";
-
-                context.lineWidth =
-                    2;
-
-                context.setLineDash(
-                    [7, 5]
-                );
-
-                context.strokeRect(
-                    left,
-                    top,
-                    right - left,
-                    bottom - top
-                );
-
-                context.setLineDash(
-                    []
-                );
-
-                if (
-                    typeof drawConnectors ===
-                        "function" &&
-                    window.FACEMESH_TESSELATION
-                ) {
-
-                    drawConnectors(
-                        context,
-                        facePoints,
-                        FACEMESH_TESSELATION,
-                        {
-                            color:
-                                "#ff625844",
-                            lineWidth:
-                                1
-                        }
-                    );
-                }
-
-                context.restore();
+            if (
+                !facePoints ||
+                Date.now() - faceLastSeen > 1200
+            ) {
 
                 if (faceStatus) {
 
                     faceStatus.textContent =
-                        "ROSTRO · DETECTADO LOCALMENTE";
+                        "ROSTRO · BUSCANDO";
                 }
 
-                return true;
-            };
+                return false;
+            }
+
+            const xs =
+                facePoints.map(
+                    point =>
+                        point.x *
+                        gestureCanvas.width
+                );
+
+            const ys =
+                facePoints.map(
+                    point =>
+                        point.y *
+                        gestureCanvas.height
+                );
+
+            const left =
+                Math.min(...xs);
+
+            const right =
+                Math.max(...xs);
+
+            const top =
+                Math.min(...ys);
+
+            const bottom =
+                Math.max(...ys);
+
+            context.save();
+
+            context.strokeStyle =
+                "#ff6258";
+
+            context.lineWidth =
+                2;
+
+            context.setLineDash(
+                [7, 5]
+            );
+
+            context.strokeRect(
+                left,
+                top,
+                right - left,
+                bottom - top
+            );
+
+            context.setLineDash([]);
+
+            if (
+                typeof drawConnectors ===
+                    "function" &&
+                window.FACEMESH_TESSELATION
+            ) {
+
+                drawConnectors(
+                    context,
+                    facePoints,
+                    FACEMESH_TESSELATION,
+                    {
+                        color: "#ff625844",
+                        lineWidth: 1
+                    }
+                );
+            }
+
+            context.restore();
+
+            if (faceStatus) {
+
+                faceStatus.textContent =
+                    "ROSTRO · DETECTADO LOCALMENTE";
+            }
+
+            return true;
+        };
 
         const faceMesh =
             window.FaceMesh
                 ? new FaceMesh({
-                    locateFile:
-                        file =>
-                            `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                    locateFile: file =>
+                        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
                 })
                 : null;
 
         faceMesh?.setOptions({
-            maxNumFaces:
-                1,
-            refineLandmarks:
-                false,
-            minDetectionConfidence:
-                0.55,
-            minTrackingConfidence:
-                0.55
+            maxNumFaces: 1,
+            refineLandmarks: false,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
         });
 
         faceMesh?.onResults(
@@ -4052,20 +3095,15 @@ async function startGestures() {
 
         const hands =
             new Hands({
-                locateFile:
-                    file =>
-                        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                locateFile: file =>
+                    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
             });
 
         hands.setOptions({
-            maxNumHands:
-                2,
-            modelComplexity:
-                1,
-            minDetectionConfidence:
-                0.65,
-            minTrackingConfidence:
-                0.6
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.65,
+            minTrackingConfidence: 0.6
         });
 
         hands.onResults(
@@ -4110,10 +3148,8 @@ async function startGestures() {
                         points,
                         HAND_CONNECTIONS,
                         {
-                            color:
-                                "#50e3ff",
-                            lineWidth:
-                                3
+                            color: "#50e3ff",
+                            lineWidth: 3
                         }
                     );
                 }
@@ -4127,10 +3163,8 @@ async function startGestures() {
                         context,
                         points,
                         {
-                            color:
-                                "#50e3ff",
-                            radius:
-                                4
+                            color: "#50e3ff",
+                            radius: 4
                         }
                     );
                 }
@@ -4143,10 +3177,8 @@ async function startGestures() {
 
                 const pinched =
                     Math.hypot(
-                        thumb.x -
-                            index.x,
-                        thumb.y -
-                            index.y
+                        thumb.x - index.x,
+                        thumb.y - index.y
                     ) < 0.06;
 
                 const x =
@@ -4162,9 +3194,7 @@ async function startGestures() {
                 context.arc(
                     x,
                     y,
-                    pinched
-                        ? 18
-                        : 10,
+                    pinched ? 18 : 10,
                     0,
                     Math.PI * 2
                 );
@@ -4183,54 +3213,47 @@ async function startGestures() {
 
                 if (
                     pinched &&
-                    Date.now() -
-                        gestureLastActionAt >
-                        1200
+                    Date.now() - gestureLastActionAt > 1200
                 ) {
 
                     const stage =
-                        gestureCanvas
-                            .parentElement
+                        gestureCanvas.parentElement
                             ?.getBoundingClientRect();
 
                     const displayX =
                         (1 - index.x) *
-                        (stage?.width ||
-                            0);
+                        (stage?.width || 0);
 
                     const displayY =
                         index.y *
-                        (stage?.height ||
-                            0);
+                        (stage?.height || 0);
 
                     const target =
                         [
                             ...document.querySelectorAll(
                                 "[data-gesture-command]"
                             )
-                        ].find(
-                            button => {
+                        ].find(button => {
 
-                                const rect =
-                                    button.getBoundingClientRect();
+                            const rect =
+                                button.getBoundingClientRect();
 
-                                return (
-                                    stage &&
-                                    displayX >=
-                                        rect.left -
-                                        stage.left &&
-                                    displayX <=
-                                        rect.right -
-                                        stage.left &&
-                                    displayY >=
-                                        rect.top -
-                                        stage.top &&
-                                    displayY <=
-                                        rect.bottom -
-                                        stage.top
-                                );
-                            }
-                        );
+                            return (
+                                stage &&
+                                displayX >=
+                                    rect.left -
+                                    stage.left &&
+                                displayX <=
+                                    rect.right -
+                                    stage.left &&
+                                displayY >=
+                                    rect.top -
+                                    stage.top &&
+                                displayY <=
+                                    rect.bottom -
+                                    stage.top
+                            );
+                        });
 
                     if (target) {
 
@@ -4253,31 +3276,21 @@ async function startGestures() {
                     onFrame:
                         async () => {
 
-                            const frame =
-                                {
-                                    image:
-                                        gestureVideo
-                                };
+                            const frame = {
+                                image:
+                                    gestureVideo
+                            };
 
                             await Promise.all(
                                 [
-                                    hands.send(
-                                        frame
-                                    ),
-                                    faceMesh?.send(
-                                        frame
-                                    )
-                                ].filter(
-                                    Boolean
-                                )
+                                    hands.send(frame),
+                                    faceMesh?.send(frame)
+                                ].filter(Boolean)
                             );
                         },
 
-                    width:
-                        1280,
-
-                    height:
-                        720
+                    width: 1280,
+                    height: 720
                 }
             );
 
@@ -4313,9 +3326,7 @@ function stopGestures() {
 }
 
 document
-    .querySelector(
-        "#closeGestures"
-    )
+    .querySelector("#closeGestures")
     ?.addEventListener(
         "click",
         () => {
@@ -4332,7 +3343,7 @@ gestureDialog?.addEventListener(
 );
 
 // ============================================================
-// 30. BOTONES DE GESTOS
+// 28. BOTONES DE GESTOS
 // ============================================================
 
 document
@@ -4354,7 +3365,7 @@ document
     });
 
 // ============================================================
-// 31. SERVICE WORKER
+// 29. SERVICE WORKER
 // ============================================================
 
 if (
@@ -4377,7 +3388,7 @@ if (
 }
 
 // ============================================================
-// 32. DIAGNÓSTICO DEL SISTEMA
+// 30. DIAGNÓSTICO DEL SISTEMA
 // ============================================================
 
 window.JARVIS = {
@@ -4389,9 +3400,7 @@ window.JARVIS = {
 
     setState(state) {
 
-        setJarvisState(
-            state
-        );
+        setJarvisState(state);
     },
 
     states:
@@ -4402,65 +3411,6 @@ window.JARVIS = {
     send,
 
     checkWindowsAgent,
-
-    // --------------------------------------------------------
-    // CONVERSACIÓN
-    // --------------------------------------------------------
-
-    conversation: {
-
-        getHistory() {
-
-            return [
-                ...conversationHistory
-            ];
-        },
-
-        getTopic() {
-
-            return conversationTopic;
-        },
-
-        getEntities() {
-
-            return [
-                ...conversationEntities
-            ];
-        },
-
-        getTurn() {
-
-            return conversationTurn;
-        },
-
-        clear() {
-
-            clearConversation();
-        },
-
-        getStatus() {
-
-            return {
-                messages:
-                    conversationHistory.length,
-
-                topic:
-                    conversationTopic,
-
-                entities:
-                    [
-                        ...conversationEntities
-                    ],
-
-                turn:
-                    conversationTurn
-            };
-        }
-    },
-
-    // --------------------------------------------------------
-    // ACOMPAÑAMIENTO
-    // --------------------------------------------------------
 
     companion: {
 
@@ -4483,56 +3433,17 @@ window.JARVIS = {
             return companionActive;
         },
 
-        isProcessing() {
-
-            return companionProcessing;
-        },
-
-        getSessionId() {
-
-            return companionSessionId;
-        },
-
         getConversation() {
 
             return [
                 ...companionConversation
             ];
-        },
-
-        getStatus() {
-
-            return {
-
-                active:
-                    companionActive,
-
-                processing:
-                    companionProcessing,
-
-                session:
-                    companionSessionId,
-
-                listening:
-                    Boolean(
-                        companionRecognition
-                    ),
-
-                speaking:
-                    Boolean(
-                        window.speechSynthesis
-                            ?.speaking
-                    ),
-
-                conversationLength:
-                    companionConversation.length
-            };
         }
     }
 };
 
 // ============================================================
-// 33. INICIALIZACIÓN FINAL
+// 31. INICIALIZACIÓN FINAL
 // ============================================================
 
 console.log(
@@ -4560,95 +3471,7 @@ console.log(
 );
 
 console.log(
-    "[JARVIS] Conversación:",
-    "ACTIVA · CONTEXTO GENERAL"
-);
-
-console.log(
     "[JARVIS] Modo acompañamiento:",
-    "CONVERSACIÓN CONTINUA + CONTEXTO GENERAL"
+    "CONVERSACIÓN CONTINUA"
 );
-// Ejemplo de integración en tu manejador de comandos
-function ejecutarComando(texto) {
-    const comando = texto.toLowerCase();
-
-    if (comando.startsWith("abrir ")) {
-        const app = comando.replace("abrir ", "").trim();
-        
-        // Intentamos abrir como app móvil
-        const ejecutado = abrirAppCelular(app);
-
-        if (ejecutado) {
-            agregarMensajeJarvis(`Abriendo ${app} en el dispositivo...`);
-        } else {
-            agregarMensajeJarvis(`No encontré una app compatible con el nombre "${app}".`);
-        }
-    }
-}
-// ============================================================
-// 16. APERTURA MULTIPLATAFORMA (PC, CELULAR Y TV)
-// ============================================================
-
-function abrirAplicacionUniversal(nombreAppKey, dispositivo = "auto") {
-    const appLimpia = String(nombreAppKey || "").toLowerCase().trim();
-    const esMovil = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    console.log(`[JARVIS] Solicitud para abrir "${appLimpia}". Dispositivo detectado: ${esMovil ? 'Móvil' : 'PC/Escritorio'}`);
-
-    // Si estás en un Celular / Tablet
-    if (esMovil || dispositivo === "celular") {
-        const esquemasMoviles = {
-            "whatsapp": "whatsapp://send",
-            "youtube": "vnd.youtube://",
-            "spotify": "spotify://",
-            "instagram": "instagram://",
-            "telegram": "tg://resolve",
-            "gmail": "googlegmail://",
-            "maps": "geo:0,0?q=",
-            "chrome": "googlechrome://"
-        };
-
-        let esquema = "";
-        for (const [key, value] of Object.entries(esquemasMoviles)) {
-            if (appLimpia.includes(key)) {
-                esquema = value;
-                break;
-            }
-        }
-
-        if (esquema) {
-            window.location.href = esquema;
-            return `Abriendo ${appLimpia} en el celular...`;
-        }
-    } 
-    
-    // Si estás en la PC (Escritorio)
-    else {
-        // En PC web pura, para abrir apps nativas de Windows (como Steam, Discord, etc.) 
-        // normalmente se usa un protocolo personalizado o se manda la orden a tu backend local de Node.js si lo tenés conectado.
-        const protocolosPC = {
-            "steam": "steam://",
-            "discord": "discord://",
-            "spotify": "spotify://"
-        };
-
-        let linkPc = "";
-        for (const [key, value] of Object.entries(protocolosPC)) {
-            if (appLimpia.includes(key)) {
-                linkPc = value;
-                break;
-            }
-        }
-
-        if (linkPc) {
-            window.location.href = linkPc;
-            return `Abriendo ${appLimpia} en la PC...`;
-        } else {
-            // Si tenés una API local de Node.js corriendo para tu JARVIS de escritorio:
-            // fetch(`http://localhost:3000/abrir?app=${encodeURIComponent(appLimpia)}`);
-            return `Intentando enviar orden a la PC para abrir: ${appLimpia}`;
-        }
-    }
-
-    return `No encontré un método compatible para abrir "${appLimpia}" en este dispositivo.`;
-}
+```
