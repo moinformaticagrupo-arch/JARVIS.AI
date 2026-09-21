@@ -1,167 +1,244 @@
-\<!doctype *html*>
-
-\<html *lang*="es">
-
-  \<head>
-
-    \<meta *charset*="UTF-8" />
-
-    \<meta *name*="viewport" *content*="width=device-width, initial-scale=1.0" />
-
-    \<meta *name*="theme-color" *content*="#07111f" />
-
-    \<link *rel*="manifest" *href*="manifest.webmanifest" />
-
-    \<link *rel*="stylesheet" *href*="styles.css" />
-
-    \<title>JARVIS\</title>
-
-  \</head>
-
-  \<body>
-
-    \<main *class*="shell">
-
-      \<header>
-
-        \<div>\<p *class*="eyebrow">\<i>\</i> SISTEMA EN LÍNEA · ASISTENTE PERSONAL\</p>\<h1>JARVIS\<span>//\</span>\</h1>\</div>
-
-        \<div *class*="header-actions">\<span *id*="clock" *class*="clock">\</span>\<button *id*="voiceSettings" *class*="sound-button" *aria-label*="Elegir voz" *title*="Elegir voz">⚙\</button>\<button *id*="soundButton" *class*="sound-button" *aria-label*="Activar o silenciar voz" *title*="Voz activada">◖))\</button>\<button *id*="voiceButton" *class*="icon-button" *aria-label*="Hablar con Jarvis" *title*="Hablar">⌁\</button>\</div>
-
-      \</header>
-
-      \<section *class*="command-deck">
-
-        \<div *class*="core" *aria-hidden*="true">\<div *class*="ring ring-one">\</div>\<div *class*="ring ring-two">\</div>\<div *class*="orb">\</div>\</div>
-
-        \<div *class*="system-readout">\<p>JARVIS PERSONAL OS\</p>\<strong>LISTO PARA AYUDAR\</strong>\<small>VOZ · ORGANIZACIÓN · INFORMACIÓN\</small>\</div>
-
-        \<div *class*="status-card">\<span>ESTADO\</span>\<b>OPERATIVO\</b>\<em>▰ ▰ ▰ ▰ ▰\</em>\</div>
-
-      \</section>
-
-      \<section *class*="dashboard" *aria-label*="Panel de control">
-
-        \<article *class*="panel">\<p>PRÓXIMA ACCIÓN\</p>\<strong *id*="nextTask">Sin recordatorios\</strong>\<button *id*="addTask" *class*="text-button">+ AGREGAR\</button>\</article>
-
-        \<article *class*="panel">\<p>AGENTE WINDOWS\</p>\<strong *id*="agentState">\<i *class*="online-dot">\</i> COMPROBANDO…\</strong>\<small *id*="agentDetail">Control local de aplicaciones\</small>\</article>
-
-        \<article *class*="panel">\<p>MEMORIA\</p>\<strong *id*="memoryCount">0 DATOS\</strong>\<button *id*="openMemory" *class*="text-button">VER\</button>\</article>
-
-      \</section>
-
-      \<section *class*="routines" *aria-label*="Rutinas inteligentes">
-
-        \<p>RUTINAS RÁPIDAS\</p>
-
-        \<div>\<button *data-routine*="modo estudio">◫ ESTUDIO\</button>\<button *data-routine*="modo cine">▷ CINE\</button>\<button *data-routine*="modo noche">☾ NOCHE\</button>\<button *data-routine*="resumen diario">◌ RESUMEN\</button>\</div>
-
-      \</section>
-
-      \<section *class*="care-mode" *aria-label*="Accesibilidad y acompañamiento">
-
-        \<div>\<p>ASISTENCIA INCLUSIVA\</p>\<small>Diseñado para todas las edades.\</small>\</div>
-
-        \<button *id*="seniorMode">Aa MODO CLARO\</button>\<button *id*="kidsMode">★ MODO INFANTIL\</button>\<button *id*="companionMode">◉ ACOMPAÑAMIENTO\</button>
-
-      \</section>
-
-      \<section *class*="task-center" *aria-label*="Centro de tareas">
-
-        \<div *class*="section-heading">\<p>ÓRDENES Y PENDIENTES\</p>\<span *id*="taskProgress">0 / 0\</span>\</div>
-
-        \<div *id*="taskList" *class*="task-list">\<p *class*="empty">Sin tareas activas, señor.\</p>\</div>
-
-      \</section>
-
-      \<section *id*="chat" *class*="chat" *aria-live*="polite">\<article *class*="message assistant">Buenas, señor. Sistemas listos. ¿Cuál es su orden?\</article>\</section>
-
-      \<section *class*="suggestions" *aria-label*="Acciones rápidas">
-
-        \<button *data-prompt*="¿Quién te creó?">\<span>01\</span> IDENTIDAD\</button>
-
-        \<button *data-prompt*="Recuérdame tomar agua a las 16:00">\<span>02\</span> RECORDATORIO\</button>
-
-        \<button *data-prompt*="¿Qué puedes hacer?">\<span>03\</span> CAPACIDADES\</button>
-
-      \</section>
-
-      \<section *class*="modules" *aria-label*="Módulos de Jarvis">
-
-        \<button *data-action*="music">\<b>♫\</b>\<span>MÚSICA\<small>Spotify / YouTube\</small>\</span>\</button>
-
-        \<button *data-action*="calendar">\<b>◫\</b>\<span>AGENDA\<small>Próximamente\</small>\</span>\</button>
-
-        \<button *data-action*="gestures">\<b>⌁\</b>\<span>GESTOS\<small>Cámara web\</small>\</span>\</button>
-
-        \<button *data-action*="devices">\<b>◈\</b>\<span>DISPOSITIVOS\<small>PC · Celular · TV\</small>\</span>\</button>
-
-      \</section>
-
-      \<form *id*="composer" *class*="composer">
-
-        \<input *id*="prompt" *autocomplete*="off" *placeholder*="Escribe una orden o pregunta…" *aria-label*="Mensaje para Jarvis" />
-
-        \<button *type*="submit">Enviar\</button>
-
-      \</form>
-
-      \<dialog *id*="taskDialog">
-
-        \<form *method*="dialog" *id*="taskForm">\<p>NUEVA TAREA\</p>\<input *id*="taskInput" *placeholder*="Ej.: llamar a mamá a las 18:00" *autocomplete*="off" />\<div>\<button *value*="cancel">Cancelar\</button>\<button *value*="save">Guardar\</button>\</div>\</form>
-
-      \</dialog>
-
-      \<dialog *id*="memoryDialog">
-
-        \<form *method*="dialog" *id*="memoryForm">\<p>MEMORIA DE JARVIS\</p>\<small>Solo se guarda en este dispositivo hasta activar la sincronización segura.\</small>\<div *id*="memoryList" *class*="memory-list">\</div>\<input *id*="memoryInput" *placeholder*="Ej.: Mi comida favorita es pizza" *autocomplete*="off" />\<div>\<button *id*="clearMemory" *type*="button">Borrar memoria\</button>\<button *value*="cancel">Cerrar\</button>\<button *value*="save">Recordar\</button>\</div>\</form>
-
-      \</dialog>
-
-      \<dialog *id*="gestureDialog" *class*="gesture-dialog">
-
-        \<div *class*="gesture-head">\<div>\<p>CONTROL GESTUAL\</p>\<small>Apunte a un botón y junte pulgar e índice para activarlo.\</small>\</div>\<button *id*="closeGestures" *aria-label*="Cerrar">×\</button>\</div>
-
-        \<div *class*="gesture-stage">\<video *id*="gestureVideo" *playsinline* *muted*>\</video>\<canvas *id*="gestureCanvas">\</canvas>\<div *class*="gesture-hud">\<div *class*="gesture-core">\<span>JARVIS\</span>\<small>GESTURE LINK\</small>\</div>\<button *data-gesture-command*="Abrir archivos">ARCHIVOS\</button>\<button *data-gesture-command*="Mostrar imágenes">IMÁGENES\</button>\<button *data-gesture-command*="Abrir música">MÚSICA\</button>\</div>\<p *id*="faceStatus" *class*="face-status">ROSTRO · BUSCANDO\</p>\<p *id*="gestureStatus" *class*="gesture-status">Inicializando cámara…\</p>\</div>
-
-      \</dialog>
-
-      \<dialog *id*="companionDialog" *class*="companion-dialog">
-
-        \<form *method*="dialog">\<p>SESIÓN DE ACOMPAÑAMIENTO\</p>\<small>JARVIS escucha solo mientras esta sesión esté activa. Decí “Jarvis” antes de pedir ayuda. No graba ni guarda el audio.\</small>\<div *class*="companion-actions">\<button *value*="cancel">Cancelar\</button>\<button *id*="startCompanion" *type*="button">Iniciar conversación\</button>\<button *id*="stopCompanion" *type*="button" *disabled*>Detener\</button>\</div>\<p *id*="companionStatus" *class*="companion-status">Micrófono desactivado.\</p>\<div *id*="companionTranscript" *class*="companion-transcript" *aria-live*="polite">Todavía no se detectaron palabras.\</div>\</form>
-
-      \</dialog>
-
-      \<dialog *id*="voiceDialog" *class*="companion-dialog">
-
-        \<form *method*="dialog">\<p>ESTUDIO DE VOZ\</p>\<small>Elegí una voz de español instalada. Las voces Natural, Neural u Online suelen sonar más humanas; JARVIS no imita la voz de una persona real.\</small>\<label *class*="voice-control">VOZ\<select *id*="voiceSelect" *aria-label*="Seleccionar voz">\</select>\</label>\<label *class*="voice-control">ESTILO\<select *id*="voiceStyle" *aria-label*="Estilo de habla">\<option *value*="professional">Profesional sereno\</option>\<option *value*="warm">Cercano y cálido\</option>\<option *value*="brief">Directo y ágil\</option>\</select>\</label>\<label *class*="voice-control">VELOCIDAD \<output *id*="rateValue">Normal\</output>\<input *id*="voiceRate" *type*="range" *min*="0.82" *max*="1.12" *step*="0.01" *value*="0.98" />\</label>\<label *class*="voice-control">TONO \<output *id*="pitchValue">Natural\</output>\<input *id*="voicePitch" *type*="range" *min*="0.82" *max*="1.12" *step*="0.01" *value*="0.96" />\</label>\<div *class*="companion-actions">\<button *value*="cancel">Cerrar\</button>\<button *id*="testVoice" *type*="button">Probar voz\</button>\<button *value*="save">Guardar\</button>\</div>\<p *id*="voiceHint" *class*="companion-status">\</p>\</form>
-
-      \</dialog>
-
-      \<dialog *id*="actionDialog" *class*="companion-dialog">
-
-        \<form *method*="dialog">\<p>CONFIRMAR ACCIÓN\</p>\<small *id*="actionDescription">\</small>\<div *class*="companion-actions">\<button *value*="cancel">Cancelar\</button>\<button *id*="confirmAction" *type*="button">Confirmar y abrir\</button>\</div>\</form>
-
-      \</dialog>
-
-      \<dialog *id*="devicesDialog" *class*="companion-dialog">
-
-        \<form *method*="dialog">\<p>DISPOSITIVOS JARVIS\</p>\<small>Cada equipo se vincula por separado y solo puede abrir las apps que autorices.\</small>\<div *class*="device-list">\<div>\<b>PC WINDOWS\</b>\<span>Disponible con el Agente Windows activo.\</span>\</div>\<div>\<b>ANDROID / ANDROID TV\</b>\<span>Requiere una app compañera de JARVIS instalada.\</span>\</div>\<div>\<b>IPHONE / APPLE TV\</b>\<span>Requiere app nativa o Atajos autorizados por el dueño.\</span>\</div>\</div>\<div *class*="companion-actions">\<button *value*="cancel">Cerrar\</button>\</div>\</form>
-
-      \</dialog>
-
-    \</main>
-
-    \<script *src*="[https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js](https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js)" *crossorigin*="anonymous">\</script>
-
-    \<script *src*="[https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js](https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js)" *crossorigin*="anonymous">\</script>
-
-    \<script *src*="[https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js](https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js)" *crossorigin*="anonymous">\</script>
-
-    \<script *src*="[https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js](https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js)" *crossorigin*="anonymous">\</script>
-
-    \<script *src*="app.js">\</script>
-
-  \</body>
-
-\</html>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#030b14" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>JARVIS.AI — Personal OS</title>
+</head>
+<body data-ai-state="online">
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <p class="eyebrow"><i></i> JARVIS PERSONAL OPERATING SYSTEM</p>
+        <h1>JARVIS<span>.AI</span></h1>
+        <p class="tagline">Tu asistente. Siempre contigo.</p>
+      </div>
+
+      <div class="header-center">
+        <span class="header-line"></span>
+        <span class="header-label">NEURAL COMMAND INTERFACE</span>
+        <span class="header-line"></span>
+      </div>
+
+      <div class="header-actions">
+        <span id="clock" class="clock"></span>
+        <button id="voiceSettings" class="sound-button" aria-label="Elegir voz" title="Elegir voz">⚙</button>
+        <button id="soundButton" class="sound-button" aria-label="Activar o silenciar voz" title="Voz activada">◖))</button>
+        <button id="voiceButton" class="icon-button" aria-label="Hablar con Jarvis" title="Hablar">⌁</button>
+      </div>
+    </header>
+
+    <section class="hud-layout">
+      <aside class="side-column left-column">
+        <section class="hud-panel location-panel">
+          <div class="panel-heading"><span>INFORMACIÓN GLOBAL</span><i></i></div>
+          <div class="global-content">
+            <div class="planet"><span>◉</span></div>
+            <div class="telemetry">
+              <p>⌖ Buenos Aires, AR</p>
+              <p>☁ 18°C <small>Parcialmente nublado</small></p>
+              <p>◷ <span id="localTime">15:42</span></p>
+              <p>▣ Tu día <small>3 tareas pendientes</small></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="hud-panel system-panel">
+          <div class="panel-heading"><span>ESTADO DEL SISTEMA</span><i></i></div>
+          <div class="metric-grid">
+            <div class="metric"><b>CPU</b><strong>12%</strong><span></span></div>
+            <div class="metric"><b>RAM</b><strong>48%</strong><span></span></div>
+            <div class="metric"><b>DISCO</b><strong>32%</strong><span></span></div>
+          </div>
+          <ul class="data-list">
+            <li><span>◈ Procesos en ejecución</span><b>184</b></li>
+            <li><span>⌁ Red (Descarga)</span><b>12.4 Mbps</b></li>
+            <li><span>⌁ Red (Subida)</span><b>3.2 Mbps</b></li>
+          </ul>
+        </section>
+
+        <section class="hud-panel memory-mini">
+          <div class="panel-heading"><span>MEMORIA</span><i></i></div>
+          <p><span>Conversaciones</span><b>12.4 GB</b></p>
+          <p><span>Archivos</span><b>8.7 GB</b></p>
+          <p><span>Total</span><b>21.1 GB</b></p>
+          <div class="progress"><span style="width:42%"></span></div>
+          <small>42% UTILIZADO</small>
+        </section>
+      </aside>
+
+      <section class="center-column">
+        <div class="status-strip">
+          <span>◈</span>
+          <strong id="centerStatus">ANALIZANDO…</strong>
+          <span>◈</span>
+        </div>
+
+        <section class="command-deck">
+          <div class="deck-grid"></div>
+          <div class="core" aria-hidden="true">
+            <div class="core-axis axis-x"></div>
+            <div class="core-axis axis-y"></div>
+            <div class="ring ring-one"></div>
+            <div class="ring ring-two"></div>
+            <div class="ring ring-three"></div>
+            <div class="orb"><span>JARVIS</span></div>
+          </div>
+
+          <div class="core-label left-label"><span>◉</span> PENSAMIENTO</div>
+          <div class="core-label left-label label-two"><span>◉</span> MEMORIA</div>
+          <div class="core-label left-label label-three"><span>◉</span> HERRAMIENTAS</div>
+          <div class="core-label right-label"><span>◉</span> Gemini</div>
+          <div class="core-label right-label label-two"><span>◉</span> OpenAI</div>
+          <div class="core-label right-label label-three"><span>◉</span> Ollama</div>
+
+          <div class="system-readout">
+            <p>JARVIS PERSONAL OS</p>
+            <strong>LISTO PARA AYUDAR</strong>
+            <small>VOZ · ORGANIZACIÓN · INFORMACIÓN</small>
+          </div>
+
+          <div class="status-card">
+            <span>ESTADO</span>
+            <b>OPERATIVO</b>
+            <em>▰ ▰ ▰ ▰ ▰</em>
+          </div>
+        </section>
+
+        <section class="dashboard" aria-label="Panel de control">
+          <article class="panel">
+            <p>PRÓXIMA ACCIÓN</p>
+            <strong id="nextTask">Sin recordatorios</strong>
+            <button id="addTask" class="text-button">+ AGREGAR</button>
+          </article>
+          <article class="panel">
+            <p>AGENTE WINDOWS</p>
+            <strong id="agentState"><i class="online-dot"></i> COMPROBANDO…</strong>
+            <small id="agentDetail">Control local de aplicaciones</small>
+          </article>
+          <article class="panel">
+            <p>MEMORIA</p>
+            <strong id="memoryCount">0 DATOS</strong>
+            <button id="openMemory" class="text-button">VER</button>
+          </article>
+        </section>
+      </section>
+
+      <aside class="side-column right-column">
+        <section class="hud-panel assistant-panel">
+          <div class="assistant-head">
+            <div class="avatar">◉</div>
+            <div><strong>JARVIS</strong><small>En línea · Listo para ayudarte</small></div>
+          </div>
+          <div class="assistant-bubble">Hola, Red Hot.<br />¿En qué puedo ayudarte hoy?</div>
+          <div class="assistant-actions">
+            <button data-prompt="Buscar información en internet">◉ Buscar información en internet <span>›</span></button>
+            <button data-prompt="Abrir una aplicación">◉ Abrir una aplicación <span>›</span></button>
+            <button data-prompt="Organizar mi día">◉ Organizar mi día <span>›</span></button>
+            <button data-prompt="Revisar mi sistema">◉ Revisar mi sistema <span>›</span></button>
+            <button data-prompt="¿Qué puedes hacer?">◉ Otra cosa… <span>›</span></button>
+          </div>
+          <div class="waveform" aria-hidden="true"></div>
+        </section>
+
+        <section class="hud-panel quick-panel">
+          <div class="panel-heading"><span>ACCIONES RÁPIDAS</span><i></i></div>
+          <div class="quick-grid">
+            <button data-action="chrome">◉<small>Abrir Chrome</small></button>
+            <button data-action="vscode">⌘<small>VS Code</small></button>
+            <button data-action="discord">◈<small>Discord</small></button>
+            <button data-action="spotify">♫<small>Spotify</small></button>
+            <button data-action="explorer">▣<small>Explorador</small></button>
+            <button data-action="terminal">〉_<small>Terminal</small></button>
+            <button data-action="settings">⚙<small>Configuración</small></button>
+            <button data-action="powershell">›_<small>PowerShell</small></button>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="bottom-grid">
+      <section class="hud-panel task-center" aria-label="Centro de tareas">
+        <div class="section-heading"><p>ÓRDENES Y PENDIENTES</p><span id="taskProgress">0 / 0</span></div>
+        <div id="taskList" class="task-list"><p class="empty">Sin tareas activas, señor.</p></div>
+      </section>
+
+      <section class="hud-panel applications-panel">
+        <div class="panel-heading"><span>TUS APLICACIONES</span><i></i></div>
+        <div class="app-row">
+          <button data-action="chrome">◉<small>Chrome</small></button>
+          <button data-action="vscode">⌘<small>VS Code</small></button>
+          <button data-action="spotify">♫<small>Spotify</small></button>
+          <button data-action="discord">◈<small>Discord</small></button>
+          <button data-action="notion">N<small>Notion</small></button>
+          <button data-action="photoshop">Ps<small>Photoshop</small></button>
+          <button data-action="more">+<small>Más</small></button>
+        </div>
+      </section>
+
+      <section class="hud-panel voice-panel">
+        <div class="panel-heading"><span>SISTEMA DE VOZ</span><i></i></div>
+        <div class="waveform large-wave" aria-hidden="true"></div>
+        <strong>Micrófono activado</strong>
+        <small>JARVIS te escucha…</small>
+      </section>
+    </section>
+
+    <section class="routines" aria-label="Rutinas inteligentes">
+      <p>RUTINAS RÁPIDAS</p>
+      <div>
+        <button data-routine="modo estudio">◫ ESTUDIO</button>
+        <button data-routine="modo cine">▷ CINE</button>
+        <button data-routine="modo noche">☾ NOCHE</button>
+        <button data-routine="resumen diario">◌ RESUMEN</button>
+      </div>
+    </section>
+
+    <section class="care-mode" aria-label="Accesibilidad y acompañamiento">
+      <div><p>ASISTENCIA INCLUSIVA</p><small>Diseñado para todas las edades.</small></div>
+      <button id="seniorMode">Aa MODO CLARO</button>
+      <button id="kidsMode">★ MODO INFANTIL</button>
+      <button id="companionMode">◉ ACOMPAÑAMIENTO</button>
+    </section>
+
+    <section id="chat" class="chat" aria-live="polite">
+      <article class="message assistant">Buenas, señor. Sistemas listos. ¿Cuál es su orden?</article>
+    </section>
+
+    <section class="suggestions" aria-label="Acciones rápidas">
+      <button data-prompt="¿Quién te creó?"><span>01</span> IDENTIDAD</button>
+      <button data-prompt="Recuérdame tomar agua a las 16:00"><span>02</span> RECORDATORIO</button>
+      <button data-prompt="¿Qué puedes hacer?"><span>03</span> CAPACIDADES</button>
+    </section>
+
+    <section class="modules" aria-label="Módulos de Jarvis">
+      <button data-action="music"><b>♫</b><span>MÚSICA<small>Spotify / YouTube</small></span></button>
+      <button data-action="calendar"><b>◫</b><span>AGENDA<small>Próximamente</small></span></button>
+      <button data-action="gestures"><b>⌁</b><span>GESTOS<small>Cámara web</small></span></button>
+      <button data-action="devices"><b>◈</b><span>DISPOSITIVOS<small>PC · Celular · TV</small></span></button>
+    </section>
+
+    <form id="composer" class="composer">
+      <input id="prompt" autocomplete="off" placeholder="Escribe una orden o pregunta…" aria-label="Mensaje para Jarvis" />
+      <button type="submit">ENVIAR ↗</button>
+    </form>
+
+    <dialog id="taskDialog"><form method="dialog" id="taskForm"><p>NUEVA TAREA</p><input id="taskInput" placeholder="Ej.: llamar a mamá a las 18:00" autocomplete="off" /><div><button value="cancel">Cancelar</button><button value="save">Guardar</button></div></form></dialog>
+    <dialog id="memoryDialog"><form method="dialog" id="memoryForm"><p>MEMORIA DE JARVIS</p><small>Solo se guarda en este dispositivo hasta activar la sincronización segura.</small><div id="memoryList" class="memory-list"></div><input id="memoryInput" placeholder="Ej.: Mi comida favorita es pizza" autocomplete="off" /><div><button id="clearMemory" type="button">Borrar memoria</button><button value="cancel">Cerrar</button><button value="save">Recordar</button></div></form></dialog>
+    <dialog id="gestureDialog" class="gesture-dialog"><div class="gesture-head"><div><p>CONTROL GESTUAL</p><small>Apunte a un botón y junte pulgar e índice para activarlo.</small></div><button id="closeGestures" aria-label="Cerrar">×</button></div><div class="gesture-stage"><video id="gestureVideo" playsinline muted></video><canvas id="gestureCanvas"></canvas><div class="gesture-hud"><div class="gesture-core"><span>JARVIS</span><small>GESTURE LINK</small></div><button data-gesture-command="Abrir archivos">ARCHIVOS</button><button data-gesture-command="Mostrar imágenes">IMÁGENES</button><button data-gesture-command="Abrir música">MÚSICA</button></div><p id="faceStatus" class="face-status">ROSTRO · BUSCANDO</p><p id="gestureStatus" class="gesture-status">Inicializando cámara…</p></div></dialog>
+    <dialog id="companionDialog" class="companion-dialog"><form method="dialog"><p>SESIÓN DE ACOMPAÑAMIENTO</p><small>JARVIS escucha solo mientras esta sesión esté activa. Decí “Jarvis” antes de pedir ayuda. No graba ni guarda el audio.</small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="startCompanion" type="button">Iniciar conversación</button><button id="stopCompanion" type="button" disabled>Detener</button></div><p id="companionStatus" class="companion-status">Micrófono desactivado.</p><div id="companionTranscript" class="companion-transcript" aria-live="polite">Todavía no se detectaron palabras.</div></form></dialog>
+    <dialog id="voiceDialog" class="companion-dialog"><form method="dialog"><p>ESTUDIO DE VOZ</p><small>Elegí una voz de español instalada. JARVIS no imita la voz de una persona real.</small><label class="voice-control">VOZ<select id="voiceSelect" aria-label="Seleccionar voz"></select></label><label class="voice-control">ESTILO<select id="voiceStyle" aria-label="Estilo de habla"><option value="professional">Profesional sereno</option><option value="warm">Cercano y cálido</option><option value="brief">Directo y ágil</option></select></label><label class="voice-control">VELOCIDAD <output id="rateValue">Normal</output><input id="voiceRate" type="range" min="0.82" max="1.12" step="0.01" value="0.98" /></label><label class="voice-control">TONO <output id="pitchValue">Natural</output><input id="voicePitch" type="range" min="0.82" max="1.12" step="0.01" value="0.96" /></label><div class="companion-actions"><button value="cancel">Cerrar</button><button id="testVoice" type="button">Probar voz</button><button value="save">Guardar</button></div><p id="voiceHint" class="companion-status"></p></form></dialog>
+    <dialog id="actionDialog" class="companion-dialog"><form method="dialog"><p>CONFIRMAR ACCIÓN</p><small id="actionDescription"></small><div class="companion-actions"><button value="cancel">Cancelar</button><button id="confirmAction" type="button">Confirmar y abrir</button></div></form></dialog>
+    <dialog id="devicesDialog" class="companion-dialog"><form method="dialog"><p>DISPOSITIVOS JARVIS</p><small>Cada equipo se vincula por separado y solo puede abrir las apps que autorices.</small><div class="device-list"><div><b>PC WINDOWS</b><span>Disponible con el Agente Windows activo.</span></div><div><b>ANDROID / ANDROID TV</b><span>Requiere una app compañera de JARVIS instalada.</span></div><div><b>IPHONE / APPLE TV</b><span>Requiere app nativa o Atajos autorizados por el dueño.</span></div></div><div class="companion-actions"><button value="cancel">Cerrar</button></div></form></dialog>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>
