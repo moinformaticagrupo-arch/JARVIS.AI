@@ -35,15 +35,40 @@
       <aside class="side-column left-column">
         <section class="hud-panel location-panel">
           <div class="panel-heading"><span>INFORMACIÓN GLOBAL</span><i></i></div>
+          <div class="global-selector-row">
+            <label for="globalCountry">PAÍS</label>
+            <select id="globalCountry" aria-label="Seleccionar país">
+              <option value="AR" selected>ARGENTINA</option>
+              <option value="UY">URUGUAY</option>
+              <option value="CL">CHILE</option>
+              <option value="BR">BRASIL</option>
+              <option value="US">ESTADOS UNIDOS</option>
+            </select>
+            <label for="globalProvince">PROVINCIA</label>
+            <select id="globalProvince" aria-label="Seleccionar provincia">
+              <option selected>BUENOS AIRES</option>
+              <option>CÓRDOBA</option>
+              <option>SANTA FE</option>
+              <option>MENDOZA</option>
+              <option>TUCUMÁN</option>
+            </select>
+          </div>
           <div class="global-content">
-            <div class="planet"><span>◉</span></div>
+            <div class="planet-stage">
+              <div class="planet-grid"></div>
+              <div class="planet"><span>◉</span></div>
+              <span class="orbit orbit-one"></span><span class="orbit orbit-two"></span>
+              <span class="scan-line"></span>
+              <b class="planet-tag">LIVE // GEO</b>
+            </div>
             <div class="telemetry">
-              <p>⌖ Buenos Aires, AR</p>
-              <p>☁ 18°C <small>Parcialmente nublado</small></p>
-              <p>◷ <span id="localTime">15:42</span></p>
-              <p>▣ Tu día <small>3 tareas pendientes</small></p>
+              <div class="telemetry-item"><span class="telemetry-icon">⌖</span><div><b>UBICACIÓN</b><p>Buenos Aires, AR</p></div></div>
+              <div class="telemetry-item"><span class="telemetry-icon">☁</span><div><b>CLIMA</b><p>18°C <small>Parcialmente nublado</small></p></div></div>
+              <div class="telemetry-item"><span class="telemetry-icon">◷</span><div><b>HORA LOCAL</b><p><span id="localTime">15:42</span></p></div></div>
+              <div class="telemetry-item"><span class="telemetry-icon">▣</span><div><b>ACTIVIDAD</b><p>3 tareas pendientes</p></div></div>
             </div>
           </div>
+          <div class="global-footer"><span>● SISTEMA DE GEOLOCALIZACIÓN ACTIVO</span><span>SECURE LINK</span></div>
         </section>
 
         <section class="hud-panel system-panel">
