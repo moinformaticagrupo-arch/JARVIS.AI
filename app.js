@@ -4585,3 +4585,81 @@ function ejecutarComando(texto) {
         }
     }
 }
+// ============================================================
+// 20. SELECTOR DE UBICACIÓN GLOBAL
+// ============================================================
+(function initGlobalLocationSelector() {
+    const panel = document.querySelector('.location-panel');
+    if (!panel || panel.querySelector('.global-location-selector')) return;
+
+    const locations = {
+        Argentina: {
+            timezone: 'America/Argentina/Tucuman',
+            regions: ['Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba', 'Corrientes', 'Entre Ríos', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucumán']
+        },
+        Brasil: { timezone: 'America/Sao_Paulo', regions: ['São Paulo', 'Río de Janeiro', 'Minas Gerais', 'Bahía', 'Paraná'] },
+        Chile: { timezone: 'America/Santiago', regions: ['Santiago Metropolitan', 'Valparaíso', 'Biobío', 'Coquimbo'] },
+        Uruguay: { timezone: 'America/Montevideo', regions: ['Montevideo', 'Canelones', 'Maldonado', 'Colonia'] },
+        México: { timezone: 'America/Mexico_City', regions: ['Ciudad de México', 'Jalisco', 'Nuevo León', 'Puebla', 'Yucatán'] },
+        España: { timezone: 'Europe/Madrid', regions: ['Madrid', 'Cataluña', 'Andalucía', 'Valencia', 'Galicia'] },
+        EstadosUnidos: { timezone: 'America/New_York', regions: ['Nueva York', 'California', 'Texas', 'Florida', 'Washington'] }
+    };
+
+    const saved = JSON.parse(localStorage.getItem('jarvis-global-location') || 'null');
+    const defaultCountry = saved?.country || 'Argentina';
+    const defaultRegion = saved?.region || 'Tucumán';
+
+    const selector = document.createElement('div');
+    selector.className = 'global-location-selector';
+    selector.innerHTML = `
+        <div class="location-select-row">
+            <label for="globalCountry">PAÍS</label>
+            <select id="globalCountry" aria-label="Elegir país">
+                ${Object.keys(locations).map(country => `<option value="${country}" ${country === defaultCountry ? 'selected' : ''}>${country === 'EstadosUnidos' ? 'Estados Unidos' : country}</option>`).join('')}
+            </select>
+        </div>
+        <div class="location-select-row">
+            <label for="globalRegion">PROVINCIA / ESTADO</label>
+            <select id="globalRegion" aria-label="Elegir provincia o estado"></select>
+        </div>
+        <p class="location-selection-status" id="locationSelectionStatus" aria-live="polite"></p>
+    `;
+
+    const content = panel.querySelector('.global-content');
+    panel.insertBefore(selector, content || panel.firstChild);
+
+    const countrySelect = selector.querySelector('#globalCountry');
+    const regionSelect = selector.querySelector('#globalRegion');
+    const status = selector.querySelector('#locationSelectionStatus');
+
+    function updateRegions(selectedRegion = '') {
+        const data = locations[countrySelect.value];
+        regionSelect.innerHTML = data.regions.map(region => `<option value="${region}" ${region === selectedRegion ? 'selected' : ''}>${region}</option>`).join('');
+        if (!regionSelect.value) regionSelect.selectedIndex = 0;
+        saveLocation();
+    }
+
+    function saveLocation() {
+        const country = countrySelect.value;
+        const region = regionSelect.value;
+        const timezone = locations[country].timezone;
+        localStorage.setItem('jarvis-global-location', JSON.stringify({ country, region, timezone }));
+
+        const time = new Intl.DateTimeFormat('es-AR', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).format(new Date());
+
+        const locationText = panel.querySelector('.telemetry p:first-child');
+        const localTime = panel.querySelector('#localTime');
+        if (locationText) locationText.textContent = `⌖ ${region}, ${country === 'EstadosUnidos' ? 'Estados Unidos' : country}`;
+        if (localTime) localTime.textContent = time;
+        if (status) status.textContent = `UBICACIÓN ACTIVA · ${region}, ${country === 'EstadosUnidos' ? 'Estados Unidos' : country}`;
+    }
+
+    countrySelect.addEventListener('change', () => updateRegions());
+    regionSelect.addEventListener('change', saveLocation);
+    updateRegions(defaultRegion);
+})();
