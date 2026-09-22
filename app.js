@@ -4585,3 +4585,51 @@ function ejecutarComando(texto) {
         }
     }
 }
+// ============================================================
+// 34. INFORMACIÓN GLOBAL — SELECTORES DINÁMICOS
+// ============================================================
+(() => {
+    const countrySelect = document.getElementById('globalCountry');
+    const provinceSelect = document.getElementById('globalProvince');
+    const locationText = document.querySelector('.telemetry-item:nth-child(1) p');
+
+    if (!countrySelect || !provinceSelect || !locationText) return;
+
+    const locations = {
+        AR: {
+            label: 'ARGENTINA',
+            provinces: ['BUENOS AIRES', 'CÓRDOBA', 'SANTA FE', 'MENDOZA', 'TUCUMÁN', 'SALTA', 'NEUQUÉN', 'RÍO NEGRO', 'CHUBUT', 'ENTRE RÍOS'],
+            code: 'AR'
+        },
+        UY: { label: 'URUGUAY', provinces: ['MONTEVIDEO', 'CANELONES', 'MALDONADO', 'SALTO', 'COLONIA'], code: 'UY' },
+        CL: { label: 'CHILE', provinces: ['SANTIAGO', 'VALPARAÍSO', 'BIOBÍO', 'MAULE', 'ARAUCANÍA'], code: 'CL' },
+        BR: { label: 'BRASIL', provinces: ['SÃO PAULO', 'RIO DE JANEIRO', 'MINAS GERAIS', 'BAHÍA', 'PARANÁ'], code: 'BR' },
+        US: { label: 'ESTADOS UNIDOS', provinces: ['CALIFORNIA', 'TEXAS', 'FLORIDA', 'NUEVA YORK', 'WASHINGTON'], code: 'US' }
+    };
+
+    function refreshProvinces() {
+        const country = locations[countrySelect.value] || locations.AR;
+        const previous = provinceSelect.value;
+        provinceSelect.replaceChildren();
+
+        country.provinces.forEach((province) => {
+            const option = document.createElement('option');
+            option.value = province;
+            option.textContent = province;
+            provinceSelect.appendChild(option);
+        });
+
+        if (country.provinces.includes(previous)) provinceSelect.value = previous;
+        updateLocation();
+    }
+
+    function updateLocation() {
+        const country = locations[countrySelect.value] || locations.AR;
+        const province = provinceSelect.value || country.provinces[0];
+        locationText.textContent = `${province}, ${country.code}`;
+    }
+
+    countrySelect.addEventListener('change', refreshProvinces);
+    provinceSelect.addEventListener('change', updateLocation);
+    refreshProvinces();
+})();
