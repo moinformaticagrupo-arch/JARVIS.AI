@@ -3554,3 +3554,69 @@ body.kids-mode button { min-height: 52px; }
     transition-duration: .01ms !important;
   }
 }
+
+/* =========================================================
+   GLOBAL LOCATION SELECTOR — JARVIS.AI
+   ========================================================= */
+
+.global-location-selector {
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px solid var(--cyan-line, rgba(114, 236, 255, .24));
+    border-radius: var(--radius-small, 11px);
+    background: linear-gradient(135deg, rgba(10, 35, 55, .72), rgba(3, 12, 24, .82));
+    box-shadow: 0 0 22px rgba(32, 201, 255, .08), inset 0 0 18px rgba(32, 201, 255, .025);
+}
+
+.location-select-row {
+    display: grid;
+    grid-template-columns: minmax(110px, .7fr) minmax(160px, 1.3fr);
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.location-select-row:last-of-type { margin-bottom: 0; }
+
+.location-select-row label {
+    color: var(--text-soft, #a9c5d0);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+.location-select-row select {
+    width: 100%;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--cyan-line, rgba(114, 236, 255, .24));
+    border-radius: 8px;
+    color: var(--text, #e9faff);
+    background: rgba(1, 10, 19, .9);
+    cursor: pointer;
+    transition: border-color var(--transition, 180ms ease), box-shadow var(--transition, 180ms ease);
+}
+
+.location-select-row select:hover,
+.location-select-row select:focus {
+    border-color: var(--cyan, #72ecff);
+    box-shadow: 0 0 12px rgba(114, 236, 255, .16);
+}
+
+.location-select-row select option {
+    color: #e9faff;
+    background: #061321;
+}
+
+.location-selection-status {
+    margin-top: 10px;
+    color: var(--text-muted, #587482);
+    font-size: 10px;
+    letter-spacing: .06em;
+}
+
+@media (max-width: 480px) {
+    .location-select-row { grid-template-columns: 1fr; gap: 5px; }
+    .location-select-row label { font-size: 9px; }
+}
