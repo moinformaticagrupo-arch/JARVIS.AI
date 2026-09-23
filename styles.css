@@ -3585,3 +3585,42 @@ body.kids-mode button { min-height: 52px; }
 @keyframes orbitPulse { 0%,100%{opacity:.35} 50%{opacity:1} }
 @keyframes planetScan { 0%,100%{transform:translateY(-48px);opacity:0} 20%,80%{opacity:.85} 50%{transform:translateY(48px)} }
 @media (max-width:600px){ .global-selector-row{grid-template-columns:auto 1fr;}.global-content{grid-template-columns:1fr 1fr;gap:5px}.planet-stage{min-height:135px}.planet{width:88px;font-size:48px}.planet-stage::before{width:125px;height:125px}.orbit{width:125px}.telemetry-item{padding:5px 3px}.telemetry-item p{font-size:9px}.global-footer{font-size:6px} }
+
+/* =========================================================
+   JARVIS — GLOBAL LOCATION / REAL WEATHER HUD
+   Compatible con el selector de ciudad inyectado por app.js.
+   ========================================================= */
+.global-selector-row {
+    grid-template-columns: auto minmax(90px, 1fr) auto minmax(90px, 1fr) auto minmax(120px, 1.25fr);
+}
+
+.global-selector-row select {
+    min-height: 27px;
+}
+
+.telemetry-item p strong {
+    display: block;
+    color: #d0f8ff;
+    font: 800 10px monospace;
+    letter-spacing: .02em;
+}
+
+.telemetry-item p small {
+    display: block;
+    margin-top: 3px;
+    color: #759aaa;
+    font-size: 8px;
+    line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+    .global-selector-row {
+        grid-template-columns: auto 1fr auto 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .global-selector-row {
+        grid-template-columns: auto 1fr;
+    }
+}
