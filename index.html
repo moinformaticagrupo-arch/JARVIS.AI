@@ -35,40 +35,15 @@
       <aside class="side-column left-column">
         <section class="hud-panel location-panel">
           <div class="panel-heading"><span>INFORMACIÓN GLOBAL</span><i></i></div>
-          <div class="global-selector-row">
-            <label for="globalCountry">PAÍS</label>
-            <select id="globalCountry" aria-label="Seleccionar país">
-              <option value="AR" selected>ARGENTINA</option>
-              <option value="UY">URUGUAY</option>
-              <option value="CL">CHILE</option>
-              <option value="BR">BRASIL</option>
-              <option value="US">ESTADOS UNIDOS</option>
-            </select>
-            <label for="globalProvince">PROVINCIA</label>
-            <select id="globalProvince" aria-label="Seleccionar provincia">
-              <option selected>BUENOS AIRES</option>
-              <option>CÓRDOBA</option>
-              <option>SANTA FE</option>
-              <option>MENDOZA</option>
-              <option>TUCUMÁN</option>
-            </select>
-          </div>
           <div class="global-content">
-            <div class="planet-stage">
-              <div class="planet-grid"></div>
-              <div class="planet"><span>◉</span></div>
-              <span class="orbit orbit-one"></span><span class="orbit orbit-two"></span>
-              <span class="scan-line"></span>
-              <b class="planet-tag">LIVE // GEO</b>
-            </div>
+            <div class="planet"><span>◉</span></div>
             <div class="telemetry">
-              <div class="telemetry-item"><span class="telemetry-icon">⌖</span><div><b>UBICACIÓN</b><p>Buenos Aires, AR</p></div></div>
-              <div class="telemetry-item"><span class="telemetry-icon">☁</span><div><b>CLIMA</b><p>18°C <small>Parcialmente nublado</small></p></div></div>
-              <div class="telemetry-item"><span class="telemetry-icon">◷</span><div><b>HORA LOCAL</b><p><span id="localTime">15:42</span></p></div></div>
-              <div class="telemetry-item"><span class="telemetry-icon">▣</span><div><b>ACTIVIDAD</b><p>3 tareas pendientes</p></div></div>
+              <p>⌖ Buenos Aires, AR</p>
+              <p>☁ 18°C <small>Parcialmente nublado</small></p>
+              <p>◷ <span id="localTime">15:42</span></p>
+              <p>▣ Tu día <small>3 tareas pendientes</small></p>
             </div>
           </div>
-          <div class="global-footer"><span>● SISTEMA DE GEOLOCALIZACIÓN ACTIVO</span><span>SECURE LINK</span></div>
         </section>
 
         <section class="hud-panel system-panel">
@@ -107,18 +82,44 @@
           <div class="core" aria-hidden="true">
             <div class="core-axis axis-x"></div>
             <div class="core-axis axis-y"></div>
-            <div class="ring ring-one"></div>
-            <div class="ring ring-two"></div>
-            <div class="ring ring-three"></div>
-            <div class="orb"><span>JARVIS</span></div>
+            <div class="neural-ring ring ring-one"></div>
+            <div class="neural-ring ring ring-two"></div>
+            <div class="neural-ring ring ring-three"></div>
+            <div class="neural-particles"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="brain-hologram">
+              <svg viewBox="0 0 300 230" role="img" aria-label="Cerebro neural holográfico de JARVIS">
+                <defs>
+                  <linearGradient id="brainFill" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#d9fbff"/>
+                    <stop offset=".25" stop-color="#4de8ff"/>
+                    <stop offset=".62" stop-color="#168dff"/>
+                    <stop offset="1" stop-color="#3149ff"/>
+                  </linearGradient>
+                  <filter id="brainGlow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                  <clipPath id="brainClip">
+                    <path d="M149 39C126 22 94 31 88 53C65 45 45 64 50 87C27 100 34 131 55 140C48 163 68 181 89 177C98 201 128 204 149 185C171 204 201 201 211 177C232 181 252 163 245 140C266 131 273 100 250 87C255 64 235 45 212 53C205 31 173 22 149 39Z"/>
+                  </clipPath>
+                </defs>
+                <path class="brain-outline" d="M149 39C126 22 94 31 88 53C65 45 45 64 50 87C27 100 34 131 55 140C48 163 68 181 89 177C98 201 128 204 149 185C171 204 201 201 211 177C232 181 252 163 245 140C266 131 273 100 250 87C255 64 235 45 212 53C205 31 173 22 149 39Z"/>
+                <g clip-path="url(#brainClip)" class="brain-neurons">
+                  <path d="M55 92C78 74 85 112 105 95S127 64 149 81S177 104 193 83S225 73 247 95"/>
+                  <path d="M48 126C72 108 87 145 105 123S132 105 149 127S177 151 195 127S227 108 252 130"/>
+                  <path d="M65 155C88 137 99 171 119 151S139 136 149 153S171 174 190 153S215 138 236 158"/>
+                  <path d="M105 53C99 78 121 81 113 106S123 135 112 158S122 185 130 194"/>
+                  <path d="M193 53C199 78 177 81 185 106S175 135 186 158S176 185 168 194"/>
+                  <path d="M149 43V185"/>
+                  <circle cx="83" cy="88" r="4"/><circle cx="112" cy="123" r="4"/><circle cx="145" cy="82" r="4"/><circle cx="188" cy="101" r="4"/><circle cx="217" cy="145" r="4"/><circle cx="130" cy="165" r="4"/><circle cx="171" cy="151" r="4"/>
+                </g>
+              </svg>
+              <div class="brain-core-label"><strong>JARVIS</strong><small>NEURAL CORE</small></div>
+            </div>
           </div>
-
-          <div class="core-label left-label"><span>◉</span> PENSAMIENTO</div>
-          <div class="core-label left-label label-two"><span>◉</span> MEMORIA</div>
-          <div class="core-label left-label label-three"><span>◉</span> HERRAMIENTAS</div>
-          <div class="core-label right-label"><span>◉</span> Gemini</div>
-          <div class="core-label right-label label-two"><span>◉</span> OpenAI</div>
-          <div class="core-label right-label label-three"><span>◉</span> Ollama</div>
+          <div class="core-label neural-module left-label"><span>◉</span><div><b>PENSAMIENTO</b><small>Razonamiento avanzado</small><em><i></i><i></i><i></i><i></i><i></i></em></div></div>
+          <div class="core-label neural-module left-label label-two"><span>◉</span><div><b>MEMORIA</b><small>Aprendizaje continuo</small><em><i></i><i></i><i></i><i></i><i></i></em></div></div>
+          <div class="core-label neural-module left-label label-three"><span>◉</span><div><b>HERRAMIENTAS</b><small>Acceso a sistemas</small><em><i></i><i></i><i></i><i></i><i></i></em></div></div>
+          <div class="core-label neural-module right-label"><span>◉</span><div><b>PERCEPCIÓN</b><small>Cámara · Voz · Entorno</small><em><i></i><i></i><i></i><i></i><i></i></em></div></div>
+          <div class="core-label neural-module right-label label-two"><span>◉</span><div><b>ACCIÓN</b><small>Ejecución de comandos</small><em><i></i><i></i><i></i><i></i><i></i></em></div></div>
+          <div class="core-label neural-module right-label label-three"><span>◉</span><div><b>SEGURIDAD</b><small>Permisos · Protección</small><em><i></i><i></i><i></i><i></i><i></i></em></div></div>
 
           <div class="system-readout">
             <p>JARVIS PERSONAL OS</p>
