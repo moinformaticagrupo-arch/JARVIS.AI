@@ -4586,50 +4586,342 @@ function ejecutarComando(texto) {
     }
 }
 // ============================================================
-// 34. INFORMACIÓN GLOBAL — SELECTORES DINÁMICOS
+// 34. INFORMACIÓN GLOBAL — UBICACIÓN + HORA + CLIMA REAL
 // ============================================================
 (() => {
-    const countrySelect = document.getElementById('globalCountry');
-    const provinceSelect = document.getElementById('globalProvince');
-    const locationText = document.querySelector('.telemetry-item:nth-child(1) p');
+    const countrySelect = document.getElementById("globalCountry");
+    const provinceSelect = document.getElementById("globalProvince");
 
-    if (!countrySelect || !provinceSelect || !locationText) return;
+    if (!countrySelect || !provinceSelect) return;
 
+    // ------------------------------------------------------------
+    // Datos de interfaz. La ciudad se geocodifica con Open-Meteo,
+    // por lo que coordenadas, zona horaria y clima son reales.
+    // ------------------------------------------------------------
     const locations = {
         AR: {
-            label: 'ARGENTINA',
-            provinces: ['BUENOS AIRES', 'CÓRDOBA', 'SANTA FE', 'MENDOZA', 'TUCUMÁN', 'SALTA', 'NEUQUÉN', 'RÍO NEGRO', 'CHUBUT', 'ENTRE RÍOS'],
-            code: 'AR'
+            label: "ARGENTINA",
+            code: "AR",
+            provinces: {
+                "BUENOS AIRES": ["Buenos Aires", "La Plata", "Mar del Plata", "Bahía Blanca"],
+                "CÓRDOBA": ["Córdoba", "Villa María", "Río Cuarto", "Villa Carlos Paz"],
+                "SANTA FE": ["Santa Fe", "Rosario", "Rafaela", "Reconquista"],
+                "MENDOZA": ["Mendoza", "San Rafael", "Godoy Cruz", "Luján de Cuyo"],
+                "TUCUMÁN": ["San Miguel de Tucumán", "Yerba Buena", "Tafí Viejo", "Concepción"],
+                "SALTA": ["Salta", "San Ramón de la Nueva Orán", "Tartagal", "Cafayate"],
+                "NEUQUÉN": ["Neuquén", "Cutral Có", "Zapala", "San Martín de los Andes"],
+                "RÍO NEGRO": ["Viedma", "San Carlos de Bariloche", "General Roca", "Cipolletti"],
+                "CHUBUT": ["Rawson", "Comodoro Rivadavia", "Puerto Madryn", "Trelew"],
+                "ENTRE RÍOS": ["Paraná", "Concordia", "Gualeguaychú", "Concepción del Uruguay"]
+            }
         },
-        UY: { label: 'URUGUAY', provinces: ['MONTEVIDEO', 'CANELONES', 'MALDONADO', 'SALTO', 'COLONIA'], code: 'UY' },
-        CL: { label: 'CHILE', provinces: ['SANTIAGO', 'VALPARAÍSO', 'BIOBÍO', 'MAULE', 'ARAUCANÍA'], code: 'CL' },
-        BR: { label: 'BRASIL', provinces: ['SÃO PAULO', 'RIO DE JANEIRO', 'MINAS GERAIS', 'BAHÍA', 'PARANÁ'], code: 'BR' },
-        US: { label: 'ESTADOS UNIDOS', provinces: ['CALIFORNIA', 'TEXAS', 'FLORIDA', 'NUEVA YORK', 'WASHINGTON'], code: 'US' }
+        UY: {
+            label: "URUGUAY", code: "UY",
+            provinces: {
+                "MONTEVIDEO": ["Montevideo"],
+                "CANELONES": ["Canelones", "Ciudad de la Costa", "Las Piedras"],
+                "MALDONADO": ["Maldonado", "Punta del Este", "San Carlos"],
+                "SALTO": ["Salto"],
+                "COLONIA": ["Colonia del Sacramento", "Carmelo", "Nueva Helvecia"]
+            }
+        },
+        CL: {
+            label: "CHILE", code: "CL",
+            provinces: {
+                "SANTIAGO": ["Santiago", "Puente Alto", "Maipú", "Las Condes"],
+                "VALPARAÍSO": ["Valparaíso", "Viña del Mar", "Quilpué", "San Antonio"],
+                "BIOBÍO": ["Concepción", "Los Ángeles", "Talcahuano", "Coronel"],
+                "MAULE": ["Talca", "Curicó", "Linares", "Constitución"],
+                "ARAUCANÍA": ["Temuco", "Villarrica", "Angol", "Pucón"]
+            }
+        },
+        BR: {
+            label: "BRASIL", code: "BR",
+            provinces: {
+                "SÃO PAULO": ["São Paulo", "Campinas", "Santos", "Ribeirão Preto"],
+                "RIO DE JANEIRO": ["Rio de Janeiro", "Niterói", "Petrópolis", "Nova Iguaçu"],
+                "MINAS GERAIS": ["Belo Horizonte", "Uberlândia", "Juiz de Fora", "Contagem"],
+                "BAHÍA": ["Salvador", "Feira de Santana", "Vitória da Conquista", "Ilhéus"],
+                "PARANÁ": ["Curitiba", "Londrina", "Maringá", "Foz do Iguaçu"]
+            }
+        },
+        US: {
+            label: "ESTADOS UNIDOS", code: "US",
+            provinces: {
+                "CALIFORNIA": ["Los Angeles", "San Francisco", "San Diego", "Sacramento"],
+                "TEXAS": ["Houston", "Dallas", "Austin", "San Antonio"],
+                "FLORIDA": ["Miami", "Orlando", "Tampa", "Jacksonville"],
+                "NUEVA YORK": ["New York", "Buffalo", "Rochester", "Yonkers"],
+                "WASHINGTON": ["Seattle", "Spokane", "Tacoma", "Vancouver"]
+            }
+        }
     };
 
-    function refreshProvinces() {
-        const country = locations[countrySelect.value] || locations.AR;
-        const previous = provinceSelect.value;
-        provinceSelect.replaceChildren();
+    const telemetryItems = [...document.querySelectorAll(".telemetry-item")];
+    const locationText = document.getElementById("globalLocationText")
+        || telemetryItems[0]?.querySelector("p");
+    const weatherText = document.getElementById("globalWeatherText")
+        || telemetryItems[1]?.querySelector("p");
+    const localTime = document.getElementById("localTime")
+        || telemetryItems[2]?.querySelector("#localTime")
+        || telemetryItems[2]?.querySelector("p");
 
-        country.provinces.forEach((province) => {
-            const option = document.createElement('option');
-            option.value = province;
-            option.textContent = province;
-            provinceSelect.appendChild(option);
+    // Si el HTML todavía no tiene ciudad, la insertamos sin exigir
+    // cambios manuales en el index.html.
+    let citySelect = document.getElementById("globalCity");
+    const selectorRow = countrySelect.closest(".global-selector-row");
+
+    if (!citySelect && selectorRow) {
+        const label = document.createElement("label");
+        label.htmlFor = "globalCity";
+        label.textContent = "CIUDAD";
+
+        citySelect = document.createElement("select");
+        citySelect.id = "globalCity";
+        citySelect.setAttribute("aria-label", "Ciudad");
+
+        selectorRow.append(label, citySelect);
+    }
+
+    if (!citySelect) return;
+
+    const state = {
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Argentina/Buenos_Aires",
+        latitude: null,
+        longitude: null,
+        city: "Buenos Aires",
+        requestId: 0
+    };
+
+    function fillSelect(select, values, selectedValue = "") {
+        select.replaceChildren();
+        values.forEach(value => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+        });
+        if (selectedValue && values.includes(selectedValue)) {
+            select.value = selectedValue;
+        }
+    }
+
+    function currentCountry() {
+        return locations[countrySelect.value] || locations.AR;
+    }
+
+    function currentProvince() {
+        const country = currentCountry();
+        return provinceSelect.value || Object.keys(country.provinces)[0];
+    }
+
+    function refreshProvinces() {
+        const country = currentCountry();
+        const previous = provinceSelect.value;
+        const provinces = Object.keys(country.provinces);
+        fillSelect(provinceSelect, provinces, previous);
+        refreshCities();
+    }
+
+    function refreshCities() {
+        const country = currentCountry();
+        const province = currentProvince();
+        const cities = country.provinces[province] || [];
+        const previous = citySelect.value;
+        fillSelect(citySelect, cities, previous);
+        updateLocationAndWeather();
+    }
+
+    function setLocationText(city, province, code) {
+        if (!locationText) return;
+        locationText.innerHTML = "";
+        const strong = document.createElement("strong");
+        strong.textContent = `${city}, ${code}`;
+        const small = document.createElement("small");
+        small.textContent = province;
+        locationText.append(strong, small);
+    }
+
+    function setWeatherLoading() {
+        if (!weatherText) return;
+        weatherText.innerHTML = "";
+        const main = document.createElement("strong");
+        main.textContent = "⟳ CARGANDO…";
+        const small = document.createElement("small");
+        small.textContent = "Consultando clima real";
+        weatherText.append(main, small);
+    }
+
+    function setWeatherError() {
+        if (!weatherText) return;
+        weatherText.innerHTML = "";
+        const main = document.createElement("strong");
+        main.textContent = "— °C";
+        const small = document.createElement("small");
+        small.textContent = "Clima no disponible";
+        weatherText.append(main, small);
+    }
+
+    async function geocodeCity(city, province, countryCode) {
+        const params = new URLSearchParams({
+            name: `${city}, ${province}`,
+            count: "5",
+            language: "es",
+            format: "json",
+            countryCode
         });
 
-        if (country.provinces.includes(previous)) provinceSelect.value = previous;
-        updateLocation();
+        const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`, {
+            cache: "no-store"
+        });
+        if (!response.ok) throw new Error("geocoding_failed");
+
+        const data = await response.json();
+        const result = data.results?.find(item =>
+            item.country_code === countryCode
+            && String(item.name).toLowerCase() === city.toLowerCase()
+        ) || data.results?.[0];
+
+        if (!result) throw new Error("city_not_found");
+        return result;
     }
 
-    function updateLocation() {
-        const country = locations[countrySelect.value] || locations.AR;
-        const province = provinceSelect.value || country.provinces[0];
-        locationText.textContent = `${province}, ${country.code}`;
+    const weatherDescriptions = {
+        0: "Despejado",
+        1: "Mayormente despejado",
+        2: "Parcialmente nublado",
+        3: "Nublado",
+        45: "Niebla",
+        48: "Niebla con escarcha",
+        51: "Llovizna ligera",
+        53: "Llovizna moderada",
+        55: "Llovizna intensa",
+        56: "Llovizna helada ligera",
+        57: "Llovizna helada intensa",
+        61: "Lluvia ligera",
+        63: "Lluvia moderada",
+        65: "Lluvia intensa",
+        66: "Lluvia helada ligera",
+        67: "Lluvia helada intensa",
+        71: "Nieve ligera",
+        73: "Nieve moderada",
+        75: "Nieve intensa",
+        77: "Granos de nieve",
+        80: "Chaparrones ligeros",
+        81: "Chaparrones moderados",
+        82: "Chaparrones intensos",
+        85: "Nevadas ligeras",
+        86: "Nevadas intensas",
+        95: "Tormenta",
+        96: "Tormenta con granizo",
+        99: "Tormenta fuerte con granizo"
+    };
+
+    function weatherIcon(code) {
+        if (code === 0) return "☀️";
+        if ([1, 2].includes(code)) return "⛅";
+        if ([3].includes(code)) return "☁️";
+        if ([45, 48].includes(code)) return "🌫️";
+        if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
+        if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "🌧️";
+        if ([71, 73, 75, 77, 85, 86].includes(code)) return "❄️";
+        if ([95, 96, 99].includes(code)) return "⛈️";
+        return "🌡️";
     }
 
-    countrySelect.addEventListener('change', refreshProvinces);
-    provinceSelect.addEventListener('change', updateLocation);
+    async function loadWeather(city, province, countryCode) {
+        const requestId = ++state.requestId;
+        setWeatherLoading();
+
+        try {
+            const geo = await geocodeCity(city, province, countryCode);
+            if (requestId !== state.requestId) return;
+
+            state.latitude = geo.latitude;
+            state.longitude = geo.longitude;
+            state.timezone = geo.timezone || "America/Argentina/Buenos_Aires";
+            state.city = city;
+
+            const params = new URLSearchParams({
+                latitude: String(geo.latitude),
+                longitude: String(geo.longitude),
+                current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
+                temperature_unit: "celsius",
+                wind_speed_unit: "kmh",
+                timezone: "auto"
+            });
+
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+                cache: "no-store"
+            });
+            if (!response.ok) throw new Error("weather_failed");
+
+            const data = await response.json();
+            if (requestId !== state.requestId) return;
+
+            const current = data.current || {};
+            const code = Number(current.weather_code);
+            const temperature = Number(current.temperature_2m);
+            const humidity = Number(current.relative_humidity_2m);
+            const apparent = Number(current.apparent_temperature);
+            const wind = Number(current.wind_speed_10m);
+            const description = weatherDescriptions[code] || "Condiciones actuales";
+
+            if (weatherText) {
+                weatherText.innerHTML = "";
+                const main = document.createElement("strong");
+                main.textContent = `${weatherIcon(code)} ${Number.isFinite(temperature) ? temperature.toFixed(1) : "—"} °C`;
+                const small = document.createElement("small");
+                const extras = [];
+                if (Number.isFinite(apparent)) extras.push(`Sensación ${apparent.toFixed(1)} °C`);
+                if (Number.isFinite(humidity)) extras.push(`Humedad ${Math.round(humidity)}%`);
+                if (Number.isFinite(wind)) extras.push(`Viento ${Math.round(wind)} km/h`);
+                small.textContent = `${description}${extras.length ? ` · ${extras.join(" · ")}` : ""}`;
+                weatherText.append(main, small);
+            }
+        } catch (error) {
+            console.warn("[JARVIS] No se pudo obtener el clima:", error);
+            if (requestId === state.requestId) setWeatherError();
+        }
+    }
+
+    function renderLocalTime() {
+        const formatter = new Intl.DateTimeFormat("es-AR", {
+            timeZone: state.timezone,
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        });
+
+        const value = formatter.format(new Date());
+        if (localTime) {
+            localTime.textContent = value;
+        }
+        if (clock) {
+            clock.textContent = value;
+        }
+    }
+
+    function updateLocationAndWeather() {
+        const country = currentCountry();
+        const province = currentProvince();
+        const city = citySelect.value || country.provinces[province]?.[0] || province;
+        setLocationText(city, province, country.code);
+        loadWeather(city, province, country.code);
+    }
+
+    countrySelect.addEventListener("change", refreshProvinces);
+    provinceSelect.addEventListener("change", refreshCities);
+    citySelect.addEventListener("change", updateLocationAndWeather);
+
     refreshProvinces();
+    renderLocalTime();
+    window.setInterval(renderLocalTime, 1000);
+    window.setInterval(() => {
+        const country = currentCountry();
+        const province = currentProvince();
+        const city = citySelect.value || country.provinces[province]?.[0] || province;
+        loadWeather(city, province, country.code);
+    }, 10 * 60 * 1000);
 })();
